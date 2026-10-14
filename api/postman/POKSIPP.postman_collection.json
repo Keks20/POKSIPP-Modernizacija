@@ -1,0 +1,659 @@
+{
+  "info": {
+    "name": "POKSIPP API",
+    "_postman_id": "6f2c1d0e-3b7a-4c55-9e21-5d0a7b9c4e11",
+    "description": "Laravel API nad MySQL bazom poksipp (Faza 3). Prvo pokreni neku od prijava - token se sam sačuva.\n\nbaseUrl je http://127.0.0.1:8000 (php artisan serve).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8000"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "ljubimacId",
+      "value": "1"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Prijava",
+      "item": [
+        {
+          "name": "Prijava - admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/prijava",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "prijava"
+              ]
+            },
+            "description": "Čuva token u promenljivu kolekcije {{token}}; svi ostali pozivi ga koriste.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"korisnicko_ime\": \"admin\",\n  \"lozinka\": \"admin123\",\n  \"uredjaj\": \"Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Prijava uspela', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "if (j.token) { pm.collectionVariables.set('token', j.token); }",
+                  "pm.test('Uloga je vraćena', () => pm.expect(j.uloga).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Prijava - negovatelj",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/prijava",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "prijava"
+              ]
+            },
+            "description": "Čuva token u promenljivu kolekcije {{token}}; svi ostali pozivi ga koriste.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"korisnicko_ime\": \"osoblje3\",\n  \"lozinka\": \"nikola123\",\n  \"uredjaj\": \"Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Prijava uspela', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "if (j.token) { pm.collectionVariables.set('token', j.token); }",
+                  "pm.test('Uloga je vraćena', () => pm.expect(j.uloga).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Prijava - vlasnik",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/prijava",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "prijava"
+              ]
+            },
+            "description": "Čuva token u promenljivu kolekcije {{token}}; svi ostali pozivi ga koriste.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"korisnicko_ime\": \"vlasnik1\",\n  \"lozinka\": \"LOZINKA_VLASNIKA\",\n  \"uredjaj\": \"Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Prijava uspela', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "if (j.token) { pm.collectionVariables.set('token', j.token); }",
+                  "pm.test('Uloga je vraćena', () => pm.expect(j.uloga).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ja (ko je prijavljen)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/ja",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ja"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Odjava (briše token)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/odjava",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "odjava"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Registracija vlasnika",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/registracija",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "registracija"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"korisnicko_ime\": \"marko\",\n  \"email\": \"marko@primer.rs\",\n  \"telefon\": \"0601112233\",\n  \"lozinka\": \"marko123\",\n  \"ime\": \"Marko\",\n  \"prezime\": \"Marković\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Ljubimci (svi prijavljeni)",
+      "item": [
+        {
+          "name": "Spisak ljubimaca",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/ljubimci",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ljubimci"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Spisak - samo u pansionu",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/ljubimci?status=Aktivan",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ljubimci"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "Aktivan"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Jedan ljubimac",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/ljubimci/{{ljubimacId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ljubimci",
+                "{{ljubimacId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Dnevnik - sve",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/ljubimci/{{ljubimacId}}/dnevnik",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ljubimci",
+                "{{ljubimacId}}",
+                "dnevnik"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Dnevnik - aktivnosti",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/ljubimci/{{ljubimacId}}/dnevnik?kategorija=Aktivnosti",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ljubimci",
+                "{{ljubimacId}}",
+                "dnevnik"
+              ],
+              "query": [
+                {
+                  "key": "kategorija",
+                  "value": "Aktivnosti"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Dnevnik - hrana",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/ljubimci/{{ljubimacId}}/dnevnik?kategorija=Hrana",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ljubimci",
+                "{{ljubimacId}}",
+                "dnevnik"
+              ],
+              "query": [
+                {
+                  "key": "kategorija",
+                  "value": "Hrana"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Račun za boravak",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/ljubimci/{{ljubimacId}}/racun",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ljubimci",
+                "{{ljubimacId}}",
+                "racun"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Slika",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/ljubimci/{{ljubimacId}}/slika",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ljubimci",
+                "{{ljubimacId}}",
+                "slika"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Cenovnik usluga",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/usluge",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "usluge"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Osoblje",
+      "item": [
+        {
+          "name": "Magacin (resursi)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/resursi",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "resursi"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Vlasnici (mušterije)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/musterije",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "musterije"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Admin",
+      "item": [
+        {
+          "name": "Zaposleni",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/zaposleni",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "zaposleni"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Prijem ljubimca",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/ljubimci",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ljubimci"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ime\": \"Žuća\",\n  \"vrsta\": \"Pas\",\n  \"rasa\": \"Labrador\",\n  \"starost\": \"2 godine\",\n  \"alergije\": \"\",\n  \"boks\": \"A3\",\n  \"vlasnik\": \"vlasnik1\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Izmena ljubimca",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/ljubimci/{{ljubimacId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ljubimci",
+                "{{ljubimacId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ime\": \"Reks\",\n  \"vrsta\": \"Pas\",\n  \"rasa\": \"Mešanac\",\n  \"starost\": \"4 godine\",\n  \"alergije\": \"Piletina\",\n  \"boks\": \"A2\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Odjava ljubimca (+ račun)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/ljubimci/{{ljubimacId}}/odjava",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ljubimci",
+                "{{ljubimacId}}",
+                "odjava"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

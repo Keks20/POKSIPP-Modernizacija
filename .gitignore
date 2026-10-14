@@ -23,5 +23,6 @@ Delphi/Delphi/
 
 # Lokalna SQLite baza se kreira automatski pri pokretanju
 Delphi/Win32/Debug/Baza/
-'n__pycache__/
-'n__pycache__/
+
+# Python kes (migracija)
+__pycache__/
