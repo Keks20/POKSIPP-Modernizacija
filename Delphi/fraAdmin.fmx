@@ -23,6 +23,8 @@ object FrameAdmin: TFrameAdmin
     end
     object lblImeAdmin: TLabel
       StyledSettings = [Family, Style, FontColor]
+      Cursor = crHandPoint
+      HitTest = True
       Position.X = 14.000000000000000000
       Position.Y = 36.000000000000000000
       Size.Width = 200.000000000000000000
@@ -30,6 +32,7 @@ object FrameAdmin: TFrameAdmin
       Size.PlatformDefault = False
       TextSettings.Font.Size = 11.000000000000000000
       TabOrder = 1
+      OnClick = lblImeAdminClick
     end
     object rectOdjava: TRectangle
       Align = Right
@@ -345,6 +348,186 @@ object FrameAdmin: TFrameAdmin
         TextSettings.HorzAlign = Center
         Text = 'Dopuni izabranu zalihu'
         TabOrder = 0
+      end
+    end
+    object rectDodajZaposlenog: TRectangle
+      Align = Top
+      Fill.Color = claYellow
+      Margins.Bottom = 8.000000000000000000
+      Position.X = 10.000000000000000000
+      Position.Y = 216.000000000000000000
+      Size.Width = 336.000000000000000000
+      Size.Height = 40.000000000000000000
+      Size.PlatformDefault = False
+      Stroke.Kind = None
+      XRadius = 20.000000000000000000
+      YRadius = 20.000000000000000000
+      OnClick = rectDodajZaposlenogClick
+      object lblDodajZaposlenog: TLabel
+        Align = Client
+        StyledSettings = [Family, FontColor]
+        Size.Width = 336.000000000000000000
+        Size.Height = 40.000000000000000000
+        Size.PlatformDefault = False
+        TextSettings.Font.StyleExt = {00070000000000000004000000}
+        TextSettings.HorzAlign = Center
+        Text = 'Dodaj zaposlenog'
+        HitTest = False
+      end
+    end
+    object rectUkloniZaposlenog: TRectangle
+      Align = Top
+      Fill.Color = xFFE5E7EB
+      Margins.Bottom = 8.000000000000000000
+      Position.X = 10.000000000000000000
+      Position.Y = 220.000000000000000000
+      Size.Width = 336.000000000000000000
+      Size.Height = 40.000000000000000000
+      Size.PlatformDefault = False
+      Stroke.Kind = None
+      XRadius = 20.000000000000000000
+      YRadius = 20.000000000000000000
+      OnClick = rectUkloniZaposlenogClick
+      object lblUkloniZaposlenog: TLabel
+        Align = Client
+        StyledSettings = [Family, FontColor]
+        Size.Width = 336.000000000000000000
+        Size.Height = 40.000000000000000000
+        Size.PlatformDefault = False
+        TextSettings.Font.StyleExt = {00070000000000000004000000}
+        TextSettings.HorzAlign = Center
+        Text = 'Ukloni / deaktiviraj izabranog'
+        HitTest = False
+      end
+    end
+    object rectDodajUslugu: TRectangle
+      Align = Top
+      Fill.Color = xFFE5E7EB
+      Margins.Bottom = 8.000000000000000000
+      Position.X = 10.000000000000000000
+      Position.Y = 890.000000000000000000
+      Size.Width = 336.000000000000000000
+      Size.Height = 40.000000000000000000
+      Size.PlatformDefault = False
+      Stroke.Kind = None
+      XRadius = 20.000000000000000000
+      YRadius = 20.000000000000000000
+      OnClick = rectDodajUsluguClick
+      object lblDodajUslugu: TLabel
+        Align = Client
+        StyledSettings = [Family, FontColor]
+        Size.Width = 336.000000000000000000
+        Size.Height = 40.000000000000000000
+        Size.PlatformDefault = False
+        TextSettings.Font.StyleExt = {00070000000000000004000000}
+        TextSettings.HorzAlign = Center
+        Text = 'Dodaj novu uslugu'
+        HitTest = False
+      end
+    end
+    object rectDodajResurs: TRectangle
+      Align = Top
+      Fill.Color = xFFE5E7EB
+      Margins.Bottom = 8.000000000000000000
+      Position.X = 10.000000000000000000
+      Position.Y = 1171.000000000000000000
+      Size.Width = 336.000000000000000000
+      Size.Height = 40.000000000000000000
+      Size.PlatformDefault = False
+      Stroke.Kind = None
+      XRadius = 20.000000000000000000
+      YRadius = 20.000000000000000000
+      OnClick = rectDodajResursClick
+      object lblDodajResurs: TLabel
+        Align = Client
+        StyledSettings = [Family, FontColor]
+        Size.Width = 336.000000000000000000
+        Size.Height = 40.000000000000000000
+        Size.PlatformDefault = False
+        TextSettings.Font.StyleExt = {00070000000000000004000000}
+        TextSettings.HorzAlign = Center
+        Text = 'Dodaj novi resurs u magacin'
+        HitTest = False
+      end
+    end
+    object lblLjubimciTitle: TLabel
+      Align = Top
+      StyledSettings = [Family, FontColor]
+      Margins.Bottom = 4.000000000000000000
+      Position.X = 10.000000000000000000
+      Position.Y = 1200.000000000000000000
+      Size.Width = 336.000000000000000000
+      Size.Height = 29.000000000000000000
+      Size.PlatformDefault = False
+      TextSettings.Font.Size = 13.000000000000000000
+      TextSettings.Font.StyleExt = {00070000000000000004000000}
+      Text = 'Ljubimci u pansionu'
+    end
+    object lbLjubimciAdmin: TListBox
+      Align = Top
+      Margins.Bottom = 10.000000000000000000
+      Position.X = 10.000000000000000000
+      Position.Y = 1233.000000000000000000
+      Size.Width = 336.000000000000000000
+      Size.Height = 200.000000000000000000
+      Size.PlatformDefault = False
+      StyleLookup = 'listboxstyle'
+      DisableFocusEffect = True
+      ItemHeight = 56.000000000000000000
+      DefaultItemStyles.ItemStyle = ''
+      DefaultItemStyles.GroupHeaderStyle = ''
+      DefaultItemStyles.GroupFooterStyle = ''
+      Viewport.Width = 332.000000000000000000
+      Viewport.Height = 196.000000000000000000
+    end
+    object rectPrimiLjubimca: TRectangle
+      Align = Top
+      Fill.Color = claYellow
+      Margins.Bottom = 8.000000000000000000
+      Position.X = 10.000000000000000000
+      Position.Y = 1440.000000000000000000
+      Size.Width = 336.000000000000000000
+      Size.Height = 40.000000000000000000
+      Size.PlatformDefault = False
+      Stroke.Kind = None
+      XRadius = 20.000000000000000000
+      YRadius = 20.000000000000000000
+      OnClick = rectPrimiLjubimcaClick
+      object lblPrimiLjubimca: TLabel
+        Align = Client
+        StyledSettings = [Family, FontColor]
+        Size.Width = 336.000000000000000000
+        Size.Height = 40.000000000000000000
+        Size.PlatformDefault = False
+        TextSettings.Font.StyleExt = {00070000000000000004000000}
+        TextSettings.HorzAlign = Center
+        Text = 'Primi ljubimca u pansion'
+        HitTest = False
+      end
+    end
+    object rectOdjaviLjubimca: TRectangle
+      Align = Top
+      Fill.Color = xFFE5E7EB
+      Margins.Bottom = 8.000000000000000000
+      Position.X = 10.000000000000000000
+      Position.Y = 1490.000000000000000000
+      Size.Width = 336.000000000000000000
+      Size.Height = 40.000000000000000000
+      Size.PlatformDefault = False
+      Stroke.Kind = None
+      XRadius = 20.000000000000000000
+      YRadius = 20.000000000000000000
+      OnClick = rectOdjaviLjubimcaClick
+      object lblOdjaviLjubimca: TLabel
+        Align = Client
+        StyledSettings = [Family, FontColor]
+        Size.Width = 336.000000000000000000
+        Size.Height = 40.000000000000000000
+        Size.PlatformDefault = False
+        TextSettings.Font.StyleExt = {00070000000000000004000000}
+        TextSettings.HorzAlign = Center
+        Text = 'Odjavi izabranog i napravi racun'
+        HitTest = False
       end
     end
   end

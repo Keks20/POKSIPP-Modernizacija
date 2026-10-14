@@ -16,7 +16,6 @@ uses
   fraForgot in 'fraForgot.pas' {Frame3: TFrame},
   fraRegister in 'fraRegister.pas' {Frame4: TFrame},
   uNavFrames in 'uNavFrames.pas',
-  fraHome in 'fraHome.pas' {Frame5: TFrame},
   uPetModel in 'uPetModel.pas',
   fraOsoblje in 'fraOsoblje.pas' {FrameOsoblje: TFrame},
   fraDnevnikMusterije in 'fraDnevnikMusterije.pas' {FrameDnevnikMusterije: TFrame},

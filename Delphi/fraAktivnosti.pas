@@ -48,7 +48,6 @@ type
 
   private
     FFS: TFormatSettings;
-    procedure SacuvajAktivnost;
     procedure ZapocniAktivnost;
     procedure IzracunajTrajanje;
     function ParsujVreme(const AVreme: string; out ADT: TDateTime): Boolean;
@@ -179,105 +178,34 @@ begin
     Exit;
   end;
 
-  Q := TFDQuery.Create(nil);
-  try
-    Q.Connection := DB;
-    Q.SQL.Text :=
-      'INSERT INTO DNEVNA_AKTIVNOST ' +
-      '(Kategorija, Vrsta_aktivnosti, VremeOd, VremeDo, ' +
-      ' DuzinaTrajanja, StatusAktivnosti, ' +
-      ' ProcenaPonasanja, Komentar, Sifra_usluge, ' +
-      ' Sifra_zaposlenog, Sifra_ljubimca) ' +
-      'VALUES ' +
-      '(:kat, :vrsta, :od, :vdo, ' +
-      ' :traj, :status, :procena, :kom, :usl, :zap, :pet)';
-
-    Q.ParamByName('kat').AsString     := 'Aktivnosti';
-    Q.ParamByName('vrsta').AsString   := Trim(edtVrsta.Text);
-    Q.ParamByName('od').AsDateTime    := dtOd;
-    Q.ParamByName('vdo').AsDateTime   := dtDo;
-    Q.ParamByName('traj').AsString    := 'U toku';
-    Q.ParamByName('status').AsString  := 'U toku';
-    Q.ParamByName('procena').AsString := Trim(edtProcena.Text);
-    Q.ParamByName('kom').AsString     := Trim(memoKomentar.Text);
-    Q.ParamByName('usl').AsInteger    := NadjiUslugu(Trim(edtVrsta.Text));
-    Q.ParamByName('zap').AsInteger    := LoggedInUserID;
-    Q.ParamByName('pet').AsInteger    := SelectedPetID;
-    Q.ExecSQL;
-
-    ShowMessage('Aktivnost je zapoceta! Pracena je na pocetnoj strani.');
-    TNavFrames.Back;
-  except
-    on E: Exception do
-      ShowMessage('Greska: ' + E.Message);
-  end;
-  Q.Free;
-end;
-
-procedure TFrameAktivnosti.SacuvajAktivnost;
-var
-  Q: TFDQuery;
-  dtOd, dtDo: TDateTime;
-  sTrajanje: string;
-  nMinuta: Int64;
-begin
-  if Trim(edtVrsta.Text) = '' then
-  begin
-    ShowMessage('Unesite vrstu aktivnosti!');
-    edtVrsta.SetFocus;
-    Exit;
-  end;
-
-  if not ParsujVreme(edtVremeOd.Text, dtOd) then
-  begin
-    ShowMessage('Pogresno vreme pocetka!' + #13#10 +
-                'Koristite format: hh:nn (npr. 09:00)');
-    edtVremeOd.SetFocus;
-    Exit;
-  end;
-
-  if not ParsujVreme(edtVremeDo.Text, dtDo) then
-  begin
-    ShowMessage('Pogresno vreme zavrsetka!' + #13#10 +
-                'Koristite format: hh:nn (npr. 10:30)');
-    edtVremeDo.SetFocus;
-    Exit;
-  end;
-
+  // Aktivnost preko ponoci (npr. 23:00 - 01:00) zavrsava se sledeceg dana.
   if dtDo < dtOd then
     dtDo := dtDo + 1;
 
-  nMinuta := MinutesBetween(dtDo, dtOd);
-  if nMinuta < 60 then
-    sTrajanje := IntToStr(nMinuta) + ' min'
-  else
-    sTrajanje := IntToStr(nMinuta div 60) + 'h ' +
-                 IntToStr(nMinuta mod 60) + 'min';
-
   Q := TFDQuery.Create(nil);
   try
-    Q.Connection := DB;
+    try
+      Q.Connection := DB;
 
-    // Ako postoji 'U toku' zapis za ovog radnika i ljubimca danas, azuriraj ga
-    Q.SQL.Text :=
-      'UPDATE DNEVNA_AKTIVNOST SET ' +
-      '  VremeDo = :do_, DuzinaTrajanja = :traj, ' +
-      '  StatusAktivnosti = ''Zavrseno'', ' +
-      '  ProcenaPonasanja = :procena, Komentar = :kom ' +
-      'WHERE Sifra_zaposlenog = :zap AND Sifra_ljubimca = :pet ' +
-      'AND Kategorija = ''Aktivnosti'' ' +
-      'AND StatusAktivnosti = ''U toku''';
-    Q.ParamByName('do_').AsDateTime    := dtDo;
-    Q.ParamByName('traj').AsString     := sTrajanje;
-    Q.ParamByName('procena').AsString  := Trim(edtProcena.Text);
-    Q.ParamByName('kom').AsString      := Trim(memoKomentar.Text);
-    Q.ParamByName('zap').AsInteger     := LoggedInUserID;
-    Q.ParamByName('pet').AsInteger     := SelectedPetID;
-    Q.ExecSQL;
+      // Radnik moze da ima samo jednu aktivnost "U toku". Ranije je nova aktivnost
+      // mogla da se zapocne pored stare, a stara je zauvek ostajala "U toku"
+      // (i radnik je kod administratora stalno bio "Zauzet").
+      Q.SQL.Text :=
+        'SELECT Vrsta_aktivnosti FROM DNEVNA_AKTIVNOST ' +
+        'WHERE Sifra_zaposlenog = :zap AND StatusAktivnosti = ''U toku'' ' +
+        'ORDER BY VremeOd DESC LIMIT 1';
+      Q.ParamByName('zap').AsInteger := LoggedInUserID;
+      Q.Open;
+      if not Q.IsEmpty then
+      begin
+        ShowMessage('Vec imate aktivnost u toku: ' +
+          Q.FieldByName('Vrsta_aktivnosti').AsString + #13#10 +
+          'Zavrsite je na pocetnoj strani (zuti baner) pa zapocnite novu.');
+        Q.Close;
+        Exit;
+      end;
+      Q.Close;
 
-    // Ako UPDATE nije azurirao ni jedan red, ubaci novi 'Zavrseno' zapis
-    if Q.RowsAffected = 0 then
-    begin
       Q.SQL.Text :=
         'INSERT INTO DNEVNA_AKTIVNOST ' +
         '(Kategorija, Vrsta_aktivnosti, VremeOd, VremeDo, ' +
@@ -285,32 +213,31 @@ begin
         ' ProcenaPonasanja, Komentar, Sifra_usluge, ' +
         ' Sifra_zaposlenog, Sifra_ljubimca) ' +
         'VALUES ' +
-        '(:kat, :vrsta, :od, :do_, ' +
-        ' :traj, :status, ' +
-        ' :procena, :kom, :usl, ' +
-        ' :zap, :pet)';
+        '(:kat, :vrsta, :od, :vdo, ' +
+        ' :traj, :status, :procena, :kom, NULLIF(:usl, 0), :zap, :pet)';  // bez usluge = NULL, ne 0 (strani kljuc u MySQL-u)
+
       Q.ParamByName('kat').AsString     := 'Aktivnosti';
       Q.ParamByName('vrsta').AsString   := Trim(edtVrsta.Text);
       Q.ParamByName('od').AsDateTime    := dtOd;
-      Q.ParamByName('do_').AsDateTime   := dtDo;
-      Q.ParamByName('traj').AsString    := sTrajanje;
-      Q.ParamByName('status').AsString  := 'Zavrseno';
+      Q.ParamByName('vdo').AsDateTime   := dtDo;
+      Q.ParamByName('traj').AsString    := 'U toku';
+      Q.ParamByName('status').AsString  := 'U toku';
       Q.ParamByName('procena').AsString := Trim(edtProcena.Text);
       Q.ParamByName('kom').AsString     := Trim(memoKomentar.Text);
       Q.ParamByName('usl').AsInteger    := NadjiUslugu(Trim(edtVrsta.Text));
       Q.ParamByName('zap').AsInteger    := LoggedInUserID;
       Q.ParamByName('pet').AsInteger    := SelectedPetID;
       Q.ExecSQL;
-    end;
 
-    ShowMessage('Aktivnost je uspesno zabelezena!' +
-                #13#10 + 'Trajanje: ' + sTrajanje);
-    TNavFrames.Back;
-  except
-    on E: Exception do
-      ShowMessage('Greska pri cuvanju: ' + E.Message);
+      ShowMessage('Aktivnost je zapoceta! Pracena je na pocetnoj strani.');
+      TNavFrames.Back;
+    except
+      on E: Exception do
+        ShowMessage('Greska: ' + E.Message);
+    end;
+  finally
+    Q.Free;
   end;
-  Q.Free;
 end;
 
 procedure TFrameAktivnosti.rectZapocniClick(Sender: TObject);

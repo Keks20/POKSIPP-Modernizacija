@@ -323,11 +323,6 @@
             <DesignClass>TFrame</DesignClass>
         </DCCReference>
         <DCCReference Include="uNavFrames.pas"/>
-        <DCCReference Include="fraHome.pas">
-            <Form>Frame5</Form>
-            <FormType>fmx</FormType>
-            <DesignClass>TFrame</DesignClass>
-        </DCCReference>
         <DCCReference Include="uPetModel.pas"/>
         <DCCReference Include="fraOsoblje.pas">
             <Form>FrameOsoblje</Form>

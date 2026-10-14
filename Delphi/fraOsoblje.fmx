@@ -23,6 +23,8 @@ object FrameOsoblje: TFrameOsoblje
     end
     object lblImeZaposlenog: TLabel
       StyledSettings = [Family, Style, FontColor]
+      Cursor = crHandPoint
+      HitTest = True
       Position.X = 14.000000000000000000
       Position.Y = 34.000000000000000000
       Size.Width = 200.000000000000000000
@@ -30,6 +32,7 @@ object FrameOsoblje: TFrameOsoblje
       Size.PlatformDefault = False
       TextSettings.Font.Size = 11.000000000000000000
       TabOrder = 3
+      OnClick = lblImeZaposlenogClick
     end
     object rectOdjava: TRectangle
       Align = Right

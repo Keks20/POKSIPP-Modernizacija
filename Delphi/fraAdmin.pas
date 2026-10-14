@@ -61,6 +61,24 @@ type
     rectPopupZatvori: TRectangle;
     lblPopupX: TLabel;
 
+    // ---- UPRAVLJANJE (dodato) ----
+    rectDodajZaposlenog: TRectangle;
+    lblDodajZaposlenog: TLabel;
+    rectUkloniZaposlenog: TRectangle;
+    lblUkloniZaposlenog: TLabel;
+    rectDodajUslugu: TRectangle;
+    lblDodajUslugu: TLabel;
+    rectDodajResurs: TRectangle;
+    lblDodajResurs: TLabel;
+
+    // ---- LJUBIMCI U PANSIONU (prijem / odjava) ----
+    lblLjubimciTitle: TLabel;
+    lbLjubimciAdmin: TListBox;
+    rectPrimiLjubimca: TRectangle;
+    lblPrimiLjubimca: TLabel;
+    rectOdjaviLjubimca: TRectangle;
+    lblOdjaviLjubimca: TLabel;
+
     procedure Loaded; override;
     procedure rectOdjavaClick(Sender: TObject);
     procedure lbZaposleniClick(Sender: TObject);
@@ -70,14 +88,21 @@ type
     procedure rectPopupZatvoriClick(Sender: TObject);
     procedure rectIzmeniCenuClick(Sender: TObject);
     procedure rectDopuniClick(Sender: TObject);
+    procedure rectDodajZaposlenogClick(Sender: TObject);
+    procedure rectUkloniZaposlenogClick(Sender: TObject);
+    procedure rectDodajUsluguClick(Sender: TObject);
+    procedure rectDodajResursClick(Sender: TObject);
+    procedure rectPrimiLjubimcaClick(Sender: TObject);
+    procedure rectOdjaviLjubimcaClick(Sender: TObject);
+    procedure lblImeAdminClick(Sender: TObject);
   private
-    FZapIDs: array[0..99] of Integer;
+    FZapIDs: TArray<Integer>;
     FZapCount: Integer;
-    FUslugaIDs: array[0..49] of Integer;
+    FUslugaIDs: TArray<Integer>;
     FUslugaCount: Integer;
-    FMagIDs: array[0..49] of Integer;   // Sifra_resursa po stavci magacina
+    FMagIDs: TArray<Integer>;   // Sifra_resursa po stavci magacina
     FMagCount: Integer;
-    FUnosDetalji: array[0..199] of string;
+    FUnosDetalji: TArray<string>;  // ranije [0..199]: unosi posle 200. se nisu otvarali
     function JeZauzet(ASifra: Integer): Boolean;
     procedure IzmeniCenuUsluge(idUsluga: Integer);
     procedure DopuniResurs(idResurs: Integer);
@@ -85,6 +110,10 @@ type
     procedure PrikaziRadnika(ASifra: Integer);
     procedure UcitajCenovnik;
     procedure UcitajMagacin;
+    procedure UcitajLjubimceAdmin;
+    function KorisnickoImeZauzeto(const AKorIme: string): Boolean;
+  private
+    FLjubIDs: TArray<Integer>;  // id ljubimca za svaku stavku u lbLjubimciAdmin
   end;
 
 implementation
@@ -95,7 +124,8 @@ procedure TFrameAdmin.Loaded;
 begin
   inherited;
   rectPopup.Visible := False;
-  lblImeAdmin.Text := LoggedInImePrezime;
+  lblImeAdmin.Text := LoggedInImePrezime + '  ·  promeni lozinku';
+  lblImeAdmin.Width := 250;
   UcitajZaposlene;
 
   if (lbZaposleni.Count > 0) and (FZapCount > 0) then
@@ -106,6 +136,7 @@ begin
 
   UcitajCenovnik;
   UcitajMagacin;
+  UcitajLjubimceAdmin;
 end;
 
 // -------------------------------------------------------
@@ -143,6 +174,7 @@ begin
   try
     lbCenovnik.Clear;
     FUslugaCount := 0;
+    FUslugaIDs := nil;
     Q := TFDQuery.Create(nil);
     try
       Q.Connection := DB;
@@ -150,7 +182,7 @@ begin
       Q.Open;
       while not Q.Eof do
       begin
-        if FUslugaCount > High(FUslugaIDs) then Break;
+        SetLength(FUslugaIDs, FUslugaCount + 1);
         FUslugaIDs[FUslugaCount] := Q.FieldByName('Sifra_usluge').AsInteger;
 
         Item := TListBoxItem.Create(lbCenovnik);
@@ -182,6 +214,7 @@ begin
   try
     lbMagacin.Clear;
     FMagCount := 0;
+    FMagIDs := nil;
     Q := TFDQuery.Create(nil);
     try
       Q.Connection := DB;
@@ -191,7 +224,7 @@ begin
       Q.Open;
       while not Q.Eof do
       begin
-        if FMagCount > High(FMagIDs) then Break;
+        SetLength(FMagIDs, FMagCount + 1);
         FMagIDs[FMagCount] := Q.FieldByName('Sifra_resursa').AsInteger;
 
         dTren := Q.FieldByName('Trenutno_u_Magacinu').AsFloat;
@@ -227,6 +260,7 @@ begin
   try
     lbZaposleni.Clear;
     FZapCount := 0;
+    FZapIDs := nil;
 
     Q := TFDQuery.Create(nil);
     try
@@ -240,14 +274,15 @@ begin
 
       while not Q.Eof do
       begin
-        if FZapCount > High(FZapIDs) then Break;
+        SetLength(FZapIDs, FZapCount + 1);
         FZapIDs[FZapCount] := Q.FieldByName('Sifra_zaposlenog').AsInteger;
 
         Item := TListBoxItem.Create(lbZaposleni);
         Item.Text := Q.FieldByName('Ime').AsString + ' ' +
                      Q.FieldByName('Prezime').AsString + '   ·   ' +
-          IfThen(JeZauzet(Q.FieldByName('Sifra_zaposlenog').AsInteger),
-                 'Zauzet', 'Dostupan');
+          IfThen(SameText(Q.FieldByName('Uloga').AsString, 'Neaktivan'), 'Neaktivan',
+            IfThen(JeZauzet(Q.FieldByName('Sifra_zaposlenog').AsInteger),
+                   'Zauzet', 'Dostupan'));
         Item.ItemData.Detail := Q.FieldByName('Uloga').AsString;
         lbZaposleni.AddObject(Item);
 
@@ -315,7 +350,7 @@ begin
     lbUnosi.BeginUpdate;
     try
       lbUnosi.Clear;
-      FillChar(FUnosDetalji, SizeOf(FUnosDetalji), 0);
+      FUnosDetalji := nil; // FillChar nad stringovima je curio memoriju
 
       Q.SQL.Text :=
         'SELECT da.Kategorija, da.Vrsta_aktivnosti, da.VremeOd, da.VremeDo, ' +
@@ -329,6 +364,7 @@ begin
       Q.ParamByName('z').AsInteger := ASifra;
       Q.Open;
 
+      Q.FetchAll; // RecordCount broji samo ucitane redove (prvih 50) bez ovoga
       lblBrojUnosi.Text := '(' + IntToStr(Q.RecordCount) + ' unosa)';
 
       if Q.IsEmpty then
@@ -395,8 +431,8 @@ begin
             sDetalj := sDetalj + #13#10 +
               'Komentar: ' + Q.FieldByName('Komentar').AsString;
 
-          if i <= High(FUnosDetalji) then
-            FUnosDetalji[i] := sDetalj;
+          SetLength(FUnosDetalji, i + 1);
+          FUnosDetalji[i] := sDetalj;
 
           Inc(i);
           Q.Next;
@@ -621,6 +657,529 @@ begin
   LoggedInImePrezime := '';
   SelectedPetID      := 0;
   TNavFrames.GoLogin;
+end;
+
+// =======================================================
+//  UPRAVLJANJE: zaposleni, usluge, resursi, ljubimci
+// =======================================================
+
+procedure TFrameAdmin.lblImeAdminClick(Sender: TObject);
+begin
+  PromeniLozinkuZaposlenog(LoggedInUserID);
+end;
+
+// Korisnicko ime mora da bude jedinstveno u obe tabele naloga
+function TFrameAdmin.KorisnickoImeZauzeto(const AKorIme: string): Boolean;
+var
+  Q: TFDQuery;
+begin
+  Q := TFDQuery.Create(nil);
+  try
+    Q.Connection := DB;
+    Q.SQL.Text :=
+      'SELECT (SELECT COUNT(*) FROM ZAPOSLENI WHERE lower(KorisnickoIme) = lower(:u)) + ' +
+      '       (SELECT COUNT(*) FROM MUSTERIJA WHERE lower(KorisnickoIme) = lower(:u2))';
+    Q.ParamByName('u').AsString  := AKorIme;
+    Q.ParamByName('u2').AsString := AKorIme;
+    Q.Open;
+    Result := Q.Fields[0].AsInteger > 0;
+  finally
+    Q.Free;
+  end;
+end;
+
+// -------------------------------------------------------
+//  Novi zaposleni
+// -------------------------------------------------------
+procedure TFrameAdmin.rectDodajZaposlenogClick(Sender: TObject);
+begin
+  TDialogService.InputQuery('Novi zaposleni',
+    ['Ime', 'Prezime', 'Uloga (npr. Negovatelj)', 'Korisnicko ime',
+     #1'Lozinka (bar 6 znakova)'],
+    ['', '', 'Negovatelj', '', ''],
+    procedure(const AResult: TModalResult; const AValues: array of string)
+    var
+      Q: TFDQuery;
+      sIme, sPrezime, sUloga, sKorIme, sLozinka: string;
+    begin
+      if (AResult <> mrOk) or (Length(AValues) < 5) then Exit;
+      sIme     := Trim(AValues[0]);
+      sPrezime := Trim(AValues[1]);
+      sUloga   := Trim(AValues[2]);
+      sKorIme  := Trim(AValues[3]);
+      sLozinka := Trim(AValues[4]);
+
+      if (sIme = '') or (sPrezime = '') or (sKorIme = '') then
+      begin
+        ShowMessage('Ime, prezime i korisnicko ime su obavezni.');
+        Exit;
+      end;
+      if sUloga = '' then
+        sUloga := 'Negovatelj';
+      // Novi admin se ne pravi iz aplikacije, a 'Neaktivan' je rezervisana uloga
+      if SameText(sUloga, 'Admin') or SameText(sUloga, 'Neaktivan') then
+      begin
+        ShowMessage('Uloga ne moze biti "Admin" ni "Neaktivan".');
+        Exit;
+      end;
+      if Length(sLozinka) < 6 then
+      begin
+        ShowMessage('Lozinka mora imati bar 6 znakova.');
+        Exit;
+      end;
+      if KorisnickoImeZauzeto(sKorIme) then
+      begin
+        ShowMessage('Korisnicko ime "' + sKorIme + '" je vec zauzeto.');
+        Exit;
+      end;
+
+      Q := TFDQuery.Create(nil);
+      try
+        Q.Connection := DB;
+        Q.SQL.Text :=
+          'INSERT INTO ZAPOSLENI (Ime, Prezime, Uloga, KorisnickoIme, Lozinka, Dostupan) ' +
+          'VALUES (:ime, :prez, :uloga, :kor, :loz, 1)';
+        Q.ParamByName('ime').AsString   := sIme;
+        Q.ParamByName('prez').AsString  := sPrezime;
+        Q.ParamByName('uloga').AsString := sUloga;
+        Q.ParamByName('kor').AsString   := sKorIme;
+        Q.ParamByName('loz').AsString   := HesLozinke(sLozinka);
+        Q.ExecSQL;
+      finally
+        Q.Free;
+      end;
+
+      UcitajZaposlene;
+      ShowMessage('Zaposleni je dodat. Prijava: ' + sKorIme);
+    end);
+end;
+
+// -------------------------------------------------------
+//  Uklanjanje zaposlenog: bez unosa se brise, sa unosima se
+//  deaktivira (ne moze da se prijavi, a istorija ostaje).
+// -------------------------------------------------------
+procedure TFrameAdmin.rectUkloniZaposlenogClick(Sender: TObject);
+var
+  Q: TFDQuery;
+  idx, idZap, nUnosa: Integer;
+  sIme, sPoruka: string;
+begin
+  idx := lbZaposleni.ItemIndex;
+  if (idx < 0) or (idx >= FZapCount) then
+  begin
+    ShowMessage('Izaberite zaposlenog iz liste.');
+    Exit;
+  end;
+  idZap := FZapIDs[idx];
+
+  if JeZauzet(idZap) then
+  begin
+    ShowMessage('Zaposleni ima aktivnost u toku. Neka je prvo zavrsi.');
+    Exit;
+  end;
+
+  Q := TFDQuery.Create(nil);
+  try
+    Q.Connection := DB;
+    Q.SQL.Text :=
+      'SELECT Ime, Prezime, Uloga, ' +
+      '  (SELECT COUNT(*) FROM DNEVNA_AKTIVNOST WHERE Sifra_zaposlenog = :z2) AS Unosa ' +
+      'FROM ZAPOSLENI WHERE Sifra_zaposlenog = :z';
+    Q.ParamByName('z').AsInteger  := idZap;
+    Q.ParamByName('z2').AsInteger := idZap;
+    Q.Open;
+    if Q.IsEmpty then Exit;
+    if SameText(Q.FieldByName('Uloga').AsString, 'Neaktivan') then
+    begin
+      ShowMessage('Ovaj nalog je vec deaktiviran.');
+      Exit;
+    end;
+    sIme   := Q.FieldByName('Ime').AsString + ' ' + Q.FieldByName('Prezime').AsString;
+    nUnosa := Q.FieldByName('Unosa').AsInteger;
+  finally
+    Q.Free;
+  end;
+
+  if nUnosa = 0 then
+    sPoruka := 'Obrisati zaposlenog ' + sIme + '?'
+  else
+    sPoruka := sIme + ' ima ' + IntToStr(nUnosa) + ' unosa.' + #13#10 +
+      'Nalog ce biti deaktiviran: vise ne moze da se prijavi, a istorija ostaje.' +
+      #13#10 + 'Nastaviti?';
+
+  TDialogService.MessageDialog(sPoruka, TMsgDlgType.mtConfirmation,
+    [TMsgDlgBtn.mbYes, TMsgDlgBtn.mbNo], TMsgDlgBtn.mbNo, 0,
+    procedure(const AResult: TModalResult)
+    var
+      Q2: TFDQuery;
+    begin
+      if AResult <> mrYes then Exit;
+      Q2 := TFDQuery.Create(nil);
+      try
+        Q2.Connection := DB;
+        if nUnosa = 0 then
+          Q2.SQL.Text := 'DELETE FROM ZAPOSLENI WHERE Sifra_zaposlenog = :z'
+        else
+          // Lozinka NULL = prijava vise nije moguca
+          Q2.SQL.Text :=
+            'UPDATE ZAPOSLENI SET Uloga = ''Neaktivan'', Lozinka = NULL, Dostupan = 0 ' +
+            'WHERE Sifra_zaposlenog = :z';
+        Q2.ParamByName('z').AsInteger := idZap;
+        Q2.ExecSQL;
+      finally
+        Q2.Free;
+      end;
+      UcitajZaposlene;
+      if FZapCount > 0 then
+      begin
+        lbZaposleni.ItemIndex := 0;
+        PrikaziRadnika(FZapIDs[0]);
+      end;
+    end);
+end;
+
+// -------------------------------------------------------
+//  Nova usluga u cenovniku
+// -------------------------------------------------------
+procedure TFrameAdmin.rectDodajUsluguClick(Sender: TObject);
+begin
+  TDialogService.InputQuery('Nova usluga',
+    ['Naziv usluge', 'Cena (RSD)'],
+    ['', ''],
+    procedure(const AResult: TModalResult; const AValues: array of string)
+    var
+      Q: TFDQuery;
+      sNaziv: string;
+      dCena: Double;
+    begin
+      if (AResult <> mrOk) or (Length(AValues) < 2) then Exit;
+      sNaziv := Trim(AValues[0]);
+      if sNaziv = '' then
+      begin
+        ShowMessage('Unesite naziv usluge.');
+        Exit;
+      end;
+      if not TryStrToFloat(StringReplace(Trim(AValues[1]), ',', '.', [rfReplaceAll]),
+                           dCena, TFormatSettings.Invariant) or (dCena < 0) then
+      begin
+        ShowMessage('Neispravna cena! Unesite broj (npr. 750).');
+        Exit;
+      end;
+
+      Q := TFDQuery.Create(nil);
+      try
+        Q.Connection := DB;
+        Q.SQL.Text := 'SELECT COUNT(*) FROM USLUGA WHERE lower(Naziv) = lower(:n)';
+        Q.ParamByName('n').AsString := sNaziv;
+        Q.Open;
+        if Q.Fields[0].AsInteger > 0 then
+        begin
+          ShowMessage('Usluga "' + sNaziv + '" vec postoji.');
+          Exit;
+        end;
+        Q.Close;
+
+        Q.SQL.Text := 'INSERT INTO USLUGA (Naziv, Cena) VALUES (:n, :c)';
+        Q.ParamByName('n').AsString := sNaziv;
+        Q.ParamByName('c').AsFloat  := dCena;
+        Q.ExecSQL;
+      finally
+        Q.Free;
+      end;
+      UcitajCenovnik;
+    end);
+end;
+
+// -------------------------------------------------------
+//  Novi resurs u magacinu
+// -------------------------------------------------------
+procedure TFrameAdmin.rectDodajResursClick(Sender: TObject);
+begin
+  TDialogService.InputQuery('Novi resurs u magacinu',
+    ['Naziv i jedinica, npr. Grickalice (g)', 'Pocetno stanje', 'Minimalni nivo'],
+    ['', '0', '0'],
+    procedure(const AResult: TModalResult; const AValues: array of string)
+    var
+      Q: TFDQuery;
+      sNaziv: string;
+      dStanje, dMin: Double;
+    begin
+      if (AResult <> mrOk) or (Length(AValues) < 3) then Exit;
+      sNaziv := Trim(AValues[0]);
+      if sNaziv = '' then
+      begin
+        ShowMessage('Unesite naziv resursa.');
+        Exit;
+      end;
+      // Jedinica u zagradi je obavezna - po njoj se pretvaraju kolicine (kg -> g...)
+      if JedinicaResursa(sNaziv) = '' then
+      begin
+        ShowMessage('Dodajte jedinicu u zagradi na kraju naziva: (g), (ml) ili (kom).');
+        Exit;
+      end;
+      if not TryStrToFloat(StringReplace(Trim(AValues[1]), ',', '.', [rfReplaceAll]),
+                           dStanje, TFormatSettings.Invariant) or (dStanje < 0) or
+         not TryStrToFloat(StringReplace(Trim(AValues[2]), ',', '.', [rfReplaceAll]),
+                           dMin, TFormatSettings.Invariant) or (dMin < 0) then
+      begin
+        ShowMessage('Stanje i minimalni nivo moraju biti brojevi (0 ili vise).');
+        Exit;
+      end;
+
+      Q := TFDQuery.Create(nil);
+      try
+        Q.Connection := DB;
+        Q.SQL.Text := 'SELECT COUNT(*) FROM RESURS WHERE lower(Tip_Resursa) = lower(:t)';
+        Q.ParamByName('t').AsString := sNaziv;
+        Q.Open;
+        if Q.Fields[0].AsInteger > 0 then
+        begin
+          ShowMessage('Resurs "' + sNaziv + '" vec postoji. Za vecu kolicinu koristite "Dopuni".');
+          Exit;
+        end;
+        Q.Close;
+
+        Q.SQL.Text :=
+          'INSERT INTO RESURS (Tip_Resursa, Trenutno_u_Magacinu, Kolicina_Nivo) ' +
+          'VALUES (:t, :s, :m)';
+        Q.ParamByName('t').AsString := sNaziv;
+        Q.ParamByName('s').AsFloat  := dStanje;
+        Q.ParamByName('m').AsFloat  := dMin;
+        Q.ExecSQL;
+      finally
+        Q.Free;
+      end;
+      UcitajMagacin;
+      ShowMessage('Resurs je dodat.' + #13#10 +
+        'Ako naziv sadrzi rec "hrana", pojavice se kod unosa hrane, a ostali kod "Ostalo".');
+    end);
+end;
+
+// -------------------------------------------------------
+//  Ljubimci u pansionu (aktivni prvo, pa odjavljeni)
+// -------------------------------------------------------
+procedure TFrameAdmin.UcitajLjubimceAdmin;
+var
+  Q: TFDQuery;
+  Item: TListBoxItem;
+  n: Integer;
+  sStatus, sVlasnik: string;
+begin
+  lbLjubimciAdmin.BeginUpdate;
+  try
+    lbLjubimciAdmin.Clear;
+    FLjubIDs := nil;
+    n := 0;
+    Q := TFDQuery.Create(nil);
+    try
+      Q.Connection := DB;
+      Q.SQL.Text :=
+        'SELECT p.id, p.name, p.species, p.Lokacija, ' +
+        '       COALESCE(p.Status, ''Aktivan'') AS StatusLj, m.Ime, m.Prezime ' +
+        'FROM pets p ' +
+        'LEFT JOIN MUSTERIJA m ON m.Sifra_musterije = p.Sifra_musterije ' +
+        'ORDER BY CASE WHEN COALESCE(p.Status, ''Aktivan'') = ''Odjavljen'' THEN 1 ELSE 0 END, ' +
+        '         p.name';
+      Q.Open;
+      while not Q.Eof do
+      begin
+        SetLength(FLjubIDs, n + 1);
+        FLjubIDs[n] := Q.FieldByName('id').AsInteger;
+
+        sStatus  := Q.FieldByName('StatusLj').AsString;
+        sVlasnik := Trim(Q.FieldByName('Ime').AsString + ' ' + Q.FieldByName('Prezime').AsString);
+        if sVlasnik = '' then
+          sVlasnik := '(nepoznat vlasnik)';
+
+        Item := TListBoxItem.Create(lbLjubimciAdmin);
+        Item.Text := Q.FieldByName('name').AsString + ' (' +
+          Q.FieldByName('species').AsString + ')   ·   ' + sStatus;
+        Item.ItemData.Detail := 'Vlasnik: ' + sVlasnik;
+        if Trim(Q.FieldByName('Lokacija').AsString) <> '' then
+          Item.ItemData.Detail := Item.ItemData.Detail + '  ·  ' +
+            Q.FieldByName('Lokacija').AsString;
+        lbLjubimciAdmin.AddObject(Item);
+
+        Inc(n);
+        Q.Next;
+      end;
+    finally
+      Q.Free;
+    end;
+  finally
+    lbLjubimciAdmin.EndUpdate;
+  end;
+end;
+
+// -------------------------------------------------------
+//  Prijem ljubimca: vlasnik mora da ima nalog, boks mora da bude slobodan
+// -------------------------------------------------------
+procedure TFrameAdmin.rectPrimiLjubimcaClick(Sender: TObject);
+begin
+  TDialogService.InputQuery('Prijem ljubimca',
+    ['Ime ljubimca', 'Vrsta (Pas, Macka...)', 'Rasa', 'Starost (npr. 2 godine)',
+     'Alergije', 'Boks (npr. A3)', 'Korisnicko ime ili email vlasnika'],
+    ['', 'Pas', '', '', 'Nema poznatih', '', ''],
+    procedure(const AResult: TModalResult; const AValues: array of string)
+    var
+      Q: TFDQuery;
+      sIme, sVrsta, sRasa, sStarost, sAlergije, sBoks, sVlasnik: string;
+      idVlasnika: Integer;
+    begin
+      if (AResult <> mrOk) or (Length(AValues) < 7) then Exit;
+      sIme      := Trim(AValues[0]);
+      sVrsta    := Trim(AValues[1]);
+      sRasa     := Trim(AValues[2]);
+      sStarost  := Trim(AValues[3]);
+      sAlergije := Trim(AValues[4]);
+      sBoks     := Trim(AValues[5]);
+      sVlasnik  := Trim(AValues[6]);
+
+      if (sIme = '') or (sVrsta = '') or (sBoks = '') or (sVlasnik = '') then
+      begin
+        ShowMessage('Ime, vrsta, boks i vlasnik su obavezni.');
+        Exit;
+      end;
+      if not StartsText('Boks', sBoks) then
+        sBoks := 'Boks ' + sBoks;
+      if sAlergije = '' then
+        sAlergije := 'Nema poznatih';
+
+      Q := TFDQuery.Create(nil);
+      try
+        Q.Connection := DB;
+
+        // Vlasnik mora vec da ima nalog (registracija)
+        Q.SQL.Text :=
+          'SELECT Sifra_musterije FROM MUSTERIJA ' +
+          'WHERE lower(KorisnickoIme) = lower(:v) OR lower(COALESCE(Email, '''')) = lower(:v2)';
+        Q.ParamByName('v').AsString  := sVlasnik;
+        Q.ParamByName('v2').AsString := sVlasnik;
+        Q.Open;
+        if Q.IsEmpty then
+        begin
+          ShowMessage('Vlasnik "' + sVlasnik + '" ne postoji.' + #13#10 +
+                      'Vlasnik prvo treba da se registruje u aplikaciji.');
+          Exit;
+        end;
+        idVlasnika := Q.Fields[0].AsInteger;
+        Q.Close;
+
+        // Boks ne sme da bude zauzet drugim ljubimcem koji je jos u pansionu
+        Q.SQL.Text :=
+          'SELECT name FROM pets WHERE lower(Lokacija) = lower(:b) ' +
+          'AND COALESCE(Status, ''Aktivan'') <> ''Odjavljen''';
+        Q.ParamByName('b').AsString := sBoks;
+        Q.Open;
+        if not Q.IsEmpty then
+        begin
+          ShowMessage(sBoks + ' je zauzet (' + Q.Fields[0].AsString + ').');
+          Exit;
+        end;
+        Q.Close;
+
+        Q.SQL.Text :=
+          'INSERT INTO pets (name, species, breed, age, Status, Sifra_musterije, ' +
+          '  Lokacija, Alergije, DatumPrijema) ' +
+          'VALUES (:ime, :vrsta, :rasa, :starost, ''Aktivan'', :mid, :lok, :alerg, :dp)';
+        Q.ParamByName('ime').AsString     := sIme;
+        Q.ParamByName('vrsta').AsString   := sVrsta;
+        Q.ParamByName('rasa').AsString    := sRasa;
+        Q.ParamByName('starost').AsString := sStarost;
+        Q.ParamByName('mid').AsInteger    := idVlasnika;
+        Q.ParamByName('lok').AsString     := sBoks;
+        Q.ParamByName('alerg').AsString   := sAlergije;
+        Q.ParamByName('dp').AsDateTime    := Now;
+        Q.ExecSQL;
+      finally
+        Q.Free;
+      end;
+
+      UcitajLjubimceAdmin;
+      ShowMessage(sIme + ' je primljen u pansion (' + sBoks + ').');
+    end);
+end;
+
+// -------------------------------------------------------
+//  Odjava ljubimca + racun po cenovniku
+// -------------------------------------------------------
+procedure TFrameAdmin.rectOdjaviLjubimcaClick(Sender: TObject);
+var
+  Q: TFDQuery;
+  idx, idPet: Integer;
+  sIme, sRacun: string;
+  dUkupno: Double;
+begin
+  idx := lbLjubimciAdmin.ItemIndex;
+  if (idx < 0) or (idx > High(FLjubIDs)) then
+  begin
+    ShowMessage('Izaberite ljubimca iz liste "Ljubimci u pansionu".');
+    Exit;
+  end;
+  idPet := FLjubIDs[idx];
+
+  Q := TFDQuery.Create(nil);
+  try
+    Q.Connection := DB;
+    Q.SQL.Text :=
+      'SELECT name, COALESCE(Status, ''Aktivan'') AS StatusLj, ' +
+      '  (SELECT COUNT(*) FROM DNEVNA_AKTIVNOST ' +
+      '    WHERE Sifra_ljubimca = :p2 AND StatusAktivnosti = ''U toku'') AS UToku ' +
+      'FROM pets WHERE id = :p';
+    Q.ParamByName('p').AsInteger  := idPet;
+    Q.ParamByName('p2').AsInteger := idPet;
+    Q.Open;
+    if Q.IsEmpty then Exit;
+    sIme := Q.FieldByName('name').AsString;
+    if Q.FieldByName('StatusLj').AsString = 'Odjavljen' then
+    begin
+      Q.Close;
+      // Vec odjavljen - samo prikazi racun
+      sRacun := ObracunBoravka(idPet, dUkupno);
+      lblPopupNaslov.Text  := 'Racun: ' + sIme + ' (odjavljen)';
+      lblPopupDetalji.Text := sRacun;
+      rectPopup.Visible    := True;
+      rectPopup.BringToFront;
+      Exit;
+    end;
+    if Q.FieldByName('UToku').AsInteger > 0 then
+    begin
+      ShowMessage(sIme + ' ima aktivnost u toku. Odjava je moguca kad se zavrsi.');
+      Exit;
+    end;
+  finally
+    Q.Free;
+  end;
+
+  sRacun := ObracunBoravka(idPet, dUkupno);
+
+  TDialogService.MessageDialog(
+    'Odjava: ' + sIme + #13#10#13#10 + sRacun + #13#10#13#10 + 'Odjaviti ljubimca?',
+    TMsgDlgType.mtConfirmation, [TMsgDlgBtn.mbYes, TMsgDlgBtn.mbNo], TMsgDlgBtn.mbNo, 0,
+    procedure(const AResult: TModalResult)
+    var
+      Q2: TFDQuery;
+    begin
+      if AResult <> mrYes then Exit;
+      Q2 := TFDQuery.Create(nil);
+      try
+        Q2.Connection := DB;
+        // Boks se oslobadja, a ljubimac ostaje u bazi radi istorije i racuna
+        Q2.SQL.Text :=
+          'UPDATE pets SET Status = ''Odjavljen'', DatumOdjave = :d, Lokacija = '''' ' +
+          'WHERE id = :p';
+        Q2.ParamByName('d').AsDateTime := Now;
+        Q2.ParamByName('p').AsInteger  := idPet;
+        Q2.ExecSQL;
+      finally
+        Q2.Free;
+      end;
+      UcitajLjubimceAdmin;
+      lblPopupNaslov.Text  := 'Racun: ' + sIme;
+      lblPopupDetalji.Text := sRacun;
+      rectPopup.Visible    := True;
+      rectPopup.BringToFront;
+    end);
 end;
 
 end.

@@ -20,6 +20,7 @@ type
     rectOdabir: TRectangle;
     lblOdabirTitle: TLabel;
     cbLjubimci: TComboBox;
+    lblBoravak: TLabel;       // boravak i racun do sada (klik = ceo racun)
 
     // --- GLAVNI SCROLL ---
     scrollContent: TScrollBox;
@@ -59,15 +60,18 @@ type
     procedure lbOstaloClick(Sender: TObject);
     procedure rectPopupZatvoriClick(Sender: TObject);
     procedure rectPopupClick(Sender: TObject);
+    procedure lblBoravakClick(Sender: TObject);
 
   private
-    FPetIDs: array[0..19] of Integer;
+    // Dinamicki nizovi - ranije array[0..19] i [0..49]: 21. ljubimac je pisao
+    // van niza, a detalji posle 50. zapisa se nisu otvarali.
+    FPetIDs: TArray<Integer>;
     FPetCount: Integer;
 
     // Cuva detalje za svaki item
-    FAktDetalji: array[0..49] of string;
-    FHranaDetalji: array[0..49] of string;
-    FOstaloDetalji: array[0..49] of string;
+    FAktDetalji: TArray<string>;
+    FHranaDetalji: TArray<string>;
+    FOstaloDetalji: TArray<string>;
 
     procedure UcitajMojeLjubimce;
     procedure UcitajSve;
@@ -75,6 +79,7 @@ type
     procedure UcitajHranu;
     procedure UcitajOstalo;
     procedure PrikaziPopup(const ANaslov, ADetalji: string);
+    procedure PrikaziBoravak;
   end;
 
 implementation
@@ -93,7 +98,20 @@ begin
 
   UcitajMojeLjubimce;
 
-  if cbLjubimci.Count > 0 then
+  if FPetCount = 0 then
+  begin
+    // Bez ljubimaca: prazne liste sa porukom, i nista tudje se ne prikazuje.
+    SelectedPetID := 0;
+    UcitajSve;
+    lbAktivnosti.Clear;
+    var ItemPrazno := TListBoxItem.Create(lbAktivnosti);
+    ItemPrazno.Text := 'Nemate ljubimce u pansionu.';
+    lbAktivnosti.AddObject(ItemPrazno);
+    lblBrojAkt.Text := '';
+    lblBrojHrana.Text := '';
+    lblBrojOstalo.Text := '';
+  end
+  else if cbLjubimci.Count > 0 then
   begin
     // Zadrzi vec selektovanog ljubimca (kad osoblje dodje preko "Pregled")
     nIdx := 0;
@@ -115,25 +133,29 @@ var
 begin
   cbLjubimci.Items.Clear;
   FPetCount := 0;
+  FPetIDs := nil;
 
   Q := TFDQuery.Create(nil);
   try
     Q.Connection := DB;
-    Q.SQL.Text :=
-      'SELECT id, name, breed, species ' +
-      'FROM pets WHERE Sifra_musterije = :mid ORDER BY name';
-    Q.ParamByName('mid').AsInteger := LoggedInUserID;
-    Q.Open;
 
-    if Q.IsEmpty then
+    // Musterija vidi SAMO svoje ljubimce. Osoblje i admin (dolaze preko "Pregled")
+    // vide sve. Ranije je musterija bez ljubimaca videla ljubimce svih vlasnika,
+    // a osoblje je trazeno po Sifra_musterije = sifra zaposlenog (pogresna tabela).
+    if LoggedInRole = 'MUSTERIJA' then
     begin
-      Q.Close;
+      Q.SQL.Text :=
+        'SELECT id, name, breed, species ' +
+        'FROM pets WHERE Sifra_musterije = :mid ORDER BY name';
+      Q.ParamByName('mid').AsInteger := LoggedInUserID;
+    end
+    else
       Q.SQL.Text := 'SELECT id, name, breed, species FROM pets ORDER BY name';
-      Q.Open;
-    end;
+    Q.Open;
 
     while not Q.Eof do
     begin
+      SetLength(FPetIDs, FPetCount + 1);
       FPetIDs[FPetCount] := Q.FieldByName('id').AsInteger;
       cbLjubimci.Items.Add(
         Q.FieldByName('name').AsString + '  (' +
@@ -158,6 +180,7 @@ end;
 
 procedure TFrameDnevnikMusterije.UcitajSve;
 begin
+  PrikaziBoravak;
   UcitajAktivnosti;
   UcitajHranu;
   UcitajOstalo;
@@ -244,7 +267,7 @@ begin
   lbAktivnosti.BeginUpdate;
   try
     lbAktivnosti.Clear;
-    FillChar(FAktDetalji, SizeOf(FAktDetalji), 0);
+    FAktDetalji := nil;
     if SelectedPetID <= 0 then Exit;
 
     Q := TFDQuery.Create(nil);
@@ -261,6 +284,7 @@ begin
       Q.ParamByName('pid').AsInteger := SelectedPetID;
       Q.Open;
 
+      Q.FetchAll; // RecordCount broji samo ucitane redove (prvih 50) bez ovoga
       lblBrojAkt.Text := '(' + IntToStr(Q.RecordCount) + ' zapisa)';
 
       if Q.IsEmpty then
@@ -276,8 +300,9 @@ begin
         begin
           Item := TListBoxItem.Create(lbAktivnosti);
           Item.Text := Q.FieldByName('Vrsta_aktivnosti').AsString;
+          // Datum je dodat jer lista obuhvata vise dana
           Item.ItemData.Detail :=
-            FormatDateTime('hh:nn', Q.FieldByName('VremeOd').AsDateTime) +
+            FormatDateTime('dd.mm. hh:nn', Q.FieldByName('VremeOd').AsDateTime) +
             ' - ' +
             FormatDateTime('hh:nn', Q.FieldByName('VremeDo').AsDateTime) +
             '  (' + Q.FieldByName('DuzinaTrajanja').AsString + ')';
@@ -316,8 +341,8 @@ begin
             'Zaposleni: ' + Q.FieldByName('Ime').AsString +
             ' ' + Q.FieldByName('Prezime').AsString;
 
-          if i <= High(FAktDetalji) then
-            FAktDetalji[i] := sDetalj;
+          SetLength(FAktDetalji, i + 1);
+          FAktDetalji[i] := sDetalj;
 
           Inc(i);
           Q.Next;
@@ -344,14 +369,14 @@ begin
   lbHrana.BeginUpdate;
   try
     lbHrana.Clear;
-    FillChar(FHranaDetalji, SizeOf(FHranaDetalji), 0);
+    FHranaDetalji := nil;
     if SelectedPetID <= 0 then Exit;
 
     Q := TFDQuery.Create(nil);
     try
       Q.Connection := DB;
       Q.SQL.Text :=
-        'SELECT da.Vrsta_aktivnosti, da.VremeObroka, da.Kolicina, ' +
+        'SELECT da.Vrsta_aktivnosti, da.VremeOd, da.VremeObroka, da.Kolicina, ' +
         '       da.Komentar, z.Ime, z.Prezime ' +
         'FROM DNEVNA_AKTIVNOST da ' +
         'LEFT JOIN ZAPOSLENI z ON z.Sifra_zaposlenog = da.Sifra_zaposlenog ' +
@@ -360,6 +385,7 @@ begin
       Q.ParamByName('pid').AsInteger := SelectedPetID;
       Q.Open;
 
+      Q.FetchAll; // RecordCount broji samo ucitane redove (prvih 50) bez ovoga
       lblBrojHrana.Text := '(' + IntToStr(Q.RecordCount) + ' obroka)';
 
       if Q.IsEmpty then
@@ -376,7 +402,8 @@ begin
           Item := TListBoxItem.Create(lbHrana);
           Item.Text := Q.FieldByName('Vrsta_aktivnosti').AsString;
           Item.ItemData.Detail :=
-            'Vreme: ' + Q.FieldByName('VremeObroka').AsString +
+            FormatDateTime('dd.mm.', Q.FieldByName('VremeOd').AsDateTime) + ' ' +
+            Q.FieldByName('VremeObroka').AsString +
             '  |  ' + Q.FieldByName('Kolicina').AsString;
           lbHrana.AddObject(Item);
 
@@ -393,8 +420,8 @@ begin
             'Zaposleni: ' + Q.FieldByName('Ime').AsString +
             ' ' + Q.FieldByName('Prezime').AsString;
 
-          if i <= High(FHranaDetalji) then
-            FHranaDetalji[i] := sDetalj;
+          SetLength(FHranaDetalji, i + 1);
+          FHranaDetalji[i] := sDetalj;
 
           Inc(i);
           Q.Next;
@@ -421,7 +448,7 @@ begin
   lbOstalo.BeginUpdate;
   try
     lbOstalo.Clear;
-    FillChar(FOstaloDetalji, SizeOf(FOstaloDetalji), 0);
+    FOstaloDetalji := nil;
     if SelectedPetID <= 0 then Exit;
 
     Q := TFDQuery.Create(nil);
@@ -437,6 +464,7 @@ begin
       Q.ParamByName('pid').AsInteger := SelectedPetID;
       Q.Open;
 
+      Q.FetchAll; // RecordCount broji samo ucitane redove (prvih 50) bez ovoga
       lblBrojOstalo.Text := '(' + IntToStr(Q.RecordCount) + ' zapisa)';
 
       if Q.IsEmpty then
@@ -454,7 +482,7 @@ begin
           Item.Text := Q.FieldByName('Vrsta_aktivnosti').AsString;
           Item.ItemData.Detail :=
             'Vreme: ' +
-            FormatDateTime('hh:nn', Q.FieldByName('VremeOd').AsDateTime);
+            FormatDateTime('dd.mm. hh:nn', Q.FieldByName('VremeOd').AsDateTime);
           lbOstalo.AddObject(Item);
 
           sDetalj :=
@@ -474,8 +502,8 @@ begin
             'Zaposleni: ' + Q.FieldByName('Ime').AsString +
             ' ' + Q.FieldByName('Prezime').AsString;
 
-          if i <= High(FOstaloDetalji) then
-            FOstaloDetalji[i] := sDetalj;
+          SetLength(FOstaloDetalji, i + 1);
+          FOstaloDetalji[i] := sDetalj;
 
           Inc(i);
           Q.Next;
@@ -487,6 +515,62 @@ begin
   finally
     lbOstalo.EndUpdate;
   end;
+end;
+
+// -------------------------------------------------------
+//  Boravak u pansionu i racun do sada (po cenovniku)
+// -------------------------------------------------------
+procedure TFrameDnevnikMusterije.PrikaziBoravak;
+var
+  Q: TFDQuery;
+  dUkupno: Double;
+  sTekst: string;
+begin
+  lblBoravak.Text := '';
+  if SelectedPetID <= 0 then Exit;
+
+  ObracunBoravka(SelectedPetID, dUkupno);
+
+  Q := TFDQuery.Create(nil);
+  try
+    Q.Connection := DB;
+    Q.SQL.Text :=
+      'SELECT COALESCE(Status, ''Aktivan'') AS StatusLj, DatumPrijema, DatumOdjave ' +
+      'FROM pets WHERE id = :p';
+    Q.ParamByName('p').AsInteger := SelectedPetID;
+    Q.Open;
+    if Q.IsEmpty then Exit;
+
+    if Q.FieldByName('StatusLj').AsString = 'Odjavljen' then
+    begin
+      sTekst := 'Odjavljen';
+      if not Q.FieldByName('DatumOdjave').IsNull then
+        sTekst := sTekst + ' ' +
+          FormatDateTime('dd.mm.yyyy.', Q.FieldByName('DatumOdjave').AsDateTime);
+      sTekst := sTekst + '  ·  ukupno: ';
+    end
+    else
+    begin
+      sTekst := 'U pansionu';
+      if not Q.FieldByName('DatumPrijema').IsNull then
+        sTekst := sTekst + ' od ' +
+          FormatDateTime('dd.mm.yyyy.', Q.FieldByName('DatumPrijema').AsDateTime);
+      sTekst := sTekst + '  ·  racun do sada: ';
+    end;
+    lblBoravak.Text := sTekst + FormatFloat('#,##0.##', dUkupno) + ' RSD';
+  finally
+    Q.Free;
+  end;
+end;
+
+procedure TFrameDnevnikMusterije.lblBoravakClick(Sender: TObject);
+var
+  dUkupno: Double;
+begin
+  if SelectedPetID <= 0 then Exit;
+  if (cbLjubimci.ItemIndex < 0) or (cbLjubimci.ItemIndex >= cbLjubimci.Count) then Exit;
+  PrikaziPopup('Racun: ' + cbLjubimci.Items[cbLjubimci.ItemIndex],
+    ObracunBoravka(SelectedPetID, dUkupno));
 end;
 
 procedure TFrameDnevnikMusterije.rectNazadClick(Sender: TObject);

@@ -41,7 +41,7 @@ type
     procedure rectNazadClick(Sender: TObject);
 
   private
-    FResIDs: array[0..49] of Integer;  // Sifra_resursa za svaku stavku menija
+    FResIDs: TArray<Integer>;  // Sifra_resursa za svaku stavku menija (bez ogranicenja broja)
     FResCount: Integer;
     function ParsujVreme(const AVreme: string;
       out ADT: TDateTime): Boolean;
@@ -70,6 +70,7 @@ begin
   try
     cbVrsta.Items.Clear;
     FResCount := 0;
+    FResIDs := nil;
     Q := TFDQuery.Create(nil);
     try
       Q.Connection := DB;
@@ -78,8 +79,9 @@ begin
         'WHERE lower(Tip_Resursa) LIKE ''%hrana%'' ' +
         'ORDER BY Tip_Resursa';
       Q.Open;
-      while not Q.Eof and (FResCount <= High(FResIDs)) do
+      while not Q.Eof do
       begin
+        SetLength(FResIDs, FResCount + 1);
         FResIDs[FResCount] := Q.FieldByName('Sifra_resursa').AsInteger;
         cbVrsta.Items.Add(Q.FieldByName('Tip_Resursa').AsString);
         Inc(FResCount);
@@ -117,27 +119,14 @@ begin
   Result := True;
 end;
 
-// Izvlaci pocetni ceo broj iz teksta kolicine (npr. "280g" -> 280)
-function ParsujKolicinu(const AKol: string): Integer;
-var
-  i: Integer;
-  sNum: string;
-begin
-  sNum := '';
-  for i := 1 to Length(AKol) do
-    if CharInSet(AKol[i], ['0'..'9']) then
-      sNum := sNum + AKol[i]
-    else if sNum <> '' then
-      Break;
-  Result := StrToIntDef(sNum, 0);
-end;
 
 procedure TFrameHrana.SacuvajHranu;
 var
   Q: TFDQuery;
   dtVreme: TDateTime;
-  idUsluga, idResurs, nUtrosak: Integer;
-  sVrsta: string;
+  idUsluga, idResurs: Integer;
+  dUtrosak: Double;
+  sVrsta, sGreska: string;
 begin
   // --- Validacija ---
   if (cbVrsta.ItemIndex < 0) or (cbVrsta.ItemIndex >= FResCount) then
@@ -169,70 +158,87 @@ begin
   end;
 
   // --- Vrsta hrane i resurs dolaze direktno iz izbora u meniju (RESURS) ---
-  nUtrosak := ParsujKolicinu(edtKolicina.Text);
   sVrsta   := cbVrsta.Items[cbVrsta.ItemIndex];
   idResurs := FResIDs[cbVrsta.ItemIndex];
 
-  // --- SQL INSERT ---
+  // Kolicina se pretvara u jedinicu resursa: '1,5kg' -> 1500 za 'Suva hrana (g)'.
+  // Ranije se uzimao samo prvi ceo broj, pa je '1,5 kg' skidalo 1 g sa zaliha.
+  if not PretvoriKolicinu(edtKolicina.Text, sVrsta, dUtrosak, sGreska) then
+  begin
+    ShowMessage(sGreska);
+    edtKolicina.SetFocus;
+    Exit;
+  end;
+
+  // --- Upis u bazu ---
   Q := TFDQuery.Create(nil);
   try
-    Q.Connection := DB;
+    try
+      Q.Connection := DB;
 
-    idUsluga := 0;
-    Q.SQL.Text := 'SELECT Sifra_usluge FROM USLUGA WHERE Naziv = ''Hranjenje'' LIMIT 1';
-    Q.Open;
-    if not Q.IsEmpty then idUsluga := Q.Fields[0].AsInteger;
-    Q.Close;
+      idUsluga := 0;
+      Q.SQL.Text := 'SELECT Sifra_usluge FROM USLUGA WHERE Naziv = ''Hranjenje'' LIMIT 1';
+      Q.Open;
+      if not Q.IsEmpty then idUsluga := Q.Fields[0].AsInteger;
+      Q.Close;
 
-    Q.SQL.Text :=
-      'INSERT INTO DNEVNA_AKTIVNOST ' +
-      '  (Kategorija, Vrsta_aktivnosti, VremeOd, VremeDo, ' +
-      '   DuzinaTrajanja, StatusAktivnosti, ' +
-      '   VremeObroka, Kolicina, Komentar, ' +
-      '   Sifra_usluge, Sifra_resursa, Kolicina_Utroska, ' +
-      '   Sifra_zaposlenog, Sifra_ljubimca) ' +
-      'VALUES ' +
-      '  (:kat, :vrsta, :od, :od, ' +
-      '   :traj, :status, ' +
-      '   :vobroka, :kol, :kom, ' +
-      '   :usl, :res, :utr, ' +
-      '   :zap, :pet)';
+      // Upis obroka/stavke i umanjenje zaliha idu zajedno: ili oba, ili nijedno.
+      DB.StartTransaction;
+      try
+        // Zalihe se skidaju pre upisa - ako ih nema dovoljno, ne upisuje se nista.
+        if not SkiniSaZaliha(idResurs, dUtrosak, sGreska) then
+        begin
+          DB.Rollback;
+          ShowMessage(sGreska);
+          Exit;
+        end;
 
-    Q.ParamByName('kat').AsString     := 'Hrana';
-    Q.ParamByName('vrsta').AsString   := sVrsta;
-    Q.ParamByName('od').AsDateTime    := dtVreme;
-    Q.ParamByName('traj').AsString    := '0 min';
-    Q.ParamByName('status').AsString  := 'Zavrseno';
-    Q.ParamByName('vobroka').AsString := Trim(edtVremeObroka.Text);
-    Q.ParamByName('kol').AsString     := Trim(edtKolicina.Text);
-    Q.ParamByName('kom').AsString     := Trim(memoKomentar.Text);
-    Q.ParamByName('usl').AsInteger    := idUsluga;
-    Q.ParamByName('res').AsInteger    := idResurs;
-    Q.ParamByName('utr').AsInteger    := nUtrosak;
-    Q.ParamByName('zap').AsInteger    := LoggedInUserID;
-    Q.ParamByName('pet').AsInteger    := SelectedPetID;
-    Q.ExecSQL;
+        Q.SQL.Text :=
+          'INSERT INTO DNEVNA_AKTIVNOST ' +
+          '  (Kategorija, Vrsta_aktivnosti, VremeOd, VremeDo, ' +
+          '   DuzinaTrajanja, StatusAktivnosti, ' +
+          '   VremeObroka, Kolicina, Komentar, ' +
+          '   Sifra_usluge, Sifra_resursa, Kolicina_Utroska, ' +
+          '   Sifra_zaposlenog, Sifra_ljubimca) ' +
+          'VALUES ' +
+          '  (:kat, :vrsta, :od, :od, ' +
+          '   :traj, :status, ' +
+          '   :vobroka, :kol, :kom, ' +
+          '   NULLIF(:usl, 0), :res, :utr, ' +  // bez usluge = NULL, ne 0
+          '   :zap, :pet)';
 
-    // --- Automatsko umanjenje zaliha u magacinu (A2.4) ---
-    if (idResurs > 0) and (nUtrosak > 0) then
-    begin
-      Q.SQL.Text :=
-        'UPDATE RESURS SET Trenutno_u_Magacinu = ' +
-        '  MAX(0, Trenutno_u_Magacinu - :u) ' +
-        'WHERE Sifra_resursa = :r';
-      Q.ParamByName('u').AsInteger := nUtrosak;
-      Q.ParamByName('r').AsInteger := idResurs;
-      Q.ExecSQL;
+        Q.ParamByName('kat').AsString     := 'Hrana';
+        Q.ParamByName('vrsta').AsString   := sVrsta;
+        Q.ParamByName('od').AsDateTime    := dtVreme;
+        Q.ParamByName('traj').AsString    := '0 min';
+        Q.ParamByName('status').AsString  := 'Zavrseno';
+        Q.ParamByName('vobroka').AsString := Trim(edtVremeObroka.Text);
+        Q.ParamByName('kol').AsString     := Trim(edtKolicina.Text);
+        Q.ParamByName('kom').AsString     := Trim(memoKomentar.Text);
+        Q.ParamByName('usl').AsInteger    := idUsluga;
+        Q.ParamByName('res').AsInteger    := idResurs;
+        Q.ParamByName('utr').AsFloat      := dUtrosak;
+        Q.ParamByName('zap').AsInteger    := LoggedInUserID;
+        Q.ParamByName('pet').AsInteger    := SelectedPetID;
+        Q.ExecSQL;
+
+        DB.Commit;
+      except
+        if DB.InTransaction then
+          DB.Rollback;
+        raise;
+      end;
+
+      ShowMessage('Obrok je uspesno zabelezen!');
+      TNavFrames.Back;
+
+    except
+      on E: Exception do
+        ShowMessage('Greska: ' + E.Message);
     end;
-
-    ShowMessage('Obrok je uspesno zabelezen!');
-    TNavFrames.Back;
-
-  except
-    on E: Exception do
-      ShowMessage('Greska: ' + E.Message);
+  finally
+    Q.Free;
   end;
-  Q.Free;
 end;
 
 procedure TFrameHrana.rectPotvrdiClick(Sender: TObject);

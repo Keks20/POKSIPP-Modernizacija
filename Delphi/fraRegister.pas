@@ -83,16 +83,32 @@ begin
       try
         Connection := DB;
 
-        // Proveri da li je korisničko ime zauzeto
+        // Proveri da li je korisničko ime zauzeto - i kod musterija i kod zaposlenih.
+        // Ranije se proveravala samo MUSTERIJA, pa je musterija mogla da uzme
+        // korisnicko ime 'admin' ili 'osoblje'.
         SQL.Text :=
-          'SELECT COUNT(*) FROM MUSTERIJA ' +
-          'WHERE lower(KorisnickoIme) = lower(:u)';
-        ParamByName('u').AsString := Trim(edtUsername.Text);
+          'SELECT (SELECT COUNT(*) FROM MUSTERIJA WHERE lower(KorisnickoIme) = lower(:u)) + ' +
+          '       (SELECT COUNT(*) FROM ZAPOSLENI WHERE lower(KorisnickoIme) = lower(:u2))';
+        ParamByName('u').AsString  := Trim(edtUsername.Text);
+        ParamByName('u2').AsString := Trim(edtUsername.Text);
         Open;
         if Fields[0].AsInteger > 0 then
         begin
           Close;
           ShowMessage('Korisničko ime je već zauzeto!');
+          Exit;
+        end;
+        Close;
+
+        // Email mora da bude jedinstven (koristi se za prijavu i promenu lozinke)
+        SQL.Text :=
+          'SELECT COUNT(*) FROM MUSTERIJA WHERE lower(COALESCE(Email, '''')) = lower(:e)';
+        ParamByName('e').AsString := Trim(edtEmail.Text);
+        Open;
+        if Fields[0].AsInteger > 0 then
+        begin
+          Close;
+          ShowMessage('Nalog sa ovim emailom već postoji!');
           Exit;
         end;
         Close;
@@ -103,7 +119,7 @@ begin
           'VALUES (:kor, :loz, :tel, :email, :ime, :prez, :nalog)';
 
         ParamByName('kor').AsString   := Trim(edtUsername.Text);
-        ParamByName('loz').AsString   := Trim(edtPassword.Text);
+        ParamByName('loz').AsString   := HesLozinke(Trim(edtPassword.Text));
         ParamByName('tel').AsString   := Trim(edtNumber.Text);
         ParamByName('email').AsString := Trim(edtEmail.Text);
         ParamByName('ime').AsString   := Trim(edtIme.Text);

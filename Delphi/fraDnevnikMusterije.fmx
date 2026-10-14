@@ -270,7 +270,7 @@ object FrameDnevnikMusterije: TFrameDnevnikMusterije
       Position.X = 10.000000000000000000
       Position.Y = 10.000000000000000000
       Size.Width = 284.000000000000000000
-      Size.Height = 80.000000000000000000
+      Size.Height = 104.000000000000000000
       Size.PlatformDefault = False
       Stroke.Kind = None
       XRadius = 12.000000000000000000
@@ -301,6 +301,22 @@ object FrameDnevnikMusterije: TFrameDnevnikMusterije
         Size.PlatformDefault = False
         TabOrder = 1
         OnChange = cbLjubimciChange
+      end
+      object lblBoravak: TLabel
+        Align = Top
+        StyledSettings = [Family, FontColor]
+        Cursor = crHandPoint
+        Margins.Left = 10.000000000000000000
+        Margins.Right = 10.000000000000000000
+        Position.X = 10.000000000000000000
+        Position.Y = 78.000000000000000000
+        Size.Width = 264.000000000000000000
+        Size.Height = 20.000000000000000000
+        Size.PlatformDefault = False
+        TextSettings.Font.Size = 11.000000000000000000
+        Text = ''
+        HitTest = True
+        OnClick = lblBoravakClick
       end
     end
   end

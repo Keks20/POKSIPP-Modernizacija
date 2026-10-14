@@ -78,7 +78,7 @@ begin
       'FROM ZAPOSLENI ' +
       'WHERE lower(KorisnickoIme) = lower(:u) AND Lozinka = :p';
     Q.ParamByName('u').AsString := sUser;
-    Q.ParamByName('p').AsString := sPass;
+    Q.ParamByName('p').AsString := HesLozinke(sPass);
     Q.Open;
 
     if not Q.IsEmpty then
@@ -111,9 +111,12 @@ begin
     Q.SQL.Text :=
       'SELECT Sifra_musterije, Ime, Prezime, KorisnickoIme ' +
       'FROM MUSTERIJA ' +
-      'WHERE lower(KorisnickoIme) = lower(:u) AND Lozinka = :p';
-    Q.ParamByName('u').AsString := sUser;
-    Q.ParamByName('p').AsString := sPass;
+      'WHERE (lower(KorisnickoIme) = lower(:u) OR lower(COALESCE(Email, '''')) = lower(:u2)) ' +
+      'AND Lozinka = :p';
+    // Musterija moze i preko emaila (tako pise u uputstvu)
+    Q.ParamByName('u').AsString  := sUser;
+    Q.ParamByName('u2').AsString := sUser;
+    Q.ParamByName('p').AsString  := HesLozinke(sPass);
     Q.Open;
 
     if not Q.IsEmpty then

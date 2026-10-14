@@ -22,6 +22,7 @@ type
     class var FCache: TDictionary<TClass, TFrame>;
     class procedure ClearHost;
     class procedure RefreshCurrent;
+    class procedure OslobodiKasnije(F: TFrame);
   public
     class constructor Create;
     class destructor Destroy;
@@ -37,8 +38,39 @@ type
 implementation
 uses fraLogin;
 class procedure TNavFrames.GoLogin;
+var
+  F: TFrame;
 begin
+  // Posle odjave praznimo istoriju ekrana: ekrani prethodnog korisnika
+  // ne ostaju u memoriji i stek ne raste sa svakom prijavom.
+  while FStack.Count > 0 do
+  begin
+    F := FStack.Pop;
+    if not FCache.ContainsValue(F) then
+      F.Free;
+  end;
+
+  if FCurrent <> nil then
+  begin
+    FCurrent.Visible := False;
+    FCurrent.Parent := nil;
+    OslobodiKasnije(FCurrent);
+    FCurrent := nil;
+  end;
+
   Go(TFrame2.Create(nil));
+end;
+
+// Ekran se oslobadja tek kad se zavrsi klik koji je pokrenuo navigaciju
+// (ne smemo da unistimo objekat dok se izvrsava njegov dogadjaj).
+class procedure TNavFrames.OslobodiKasnije(F: TFrame);
+begin
+  if (F = nil) or FCache.ContainsValue(F) then Exit;
+  TThread.ForceQueue(nil,
+    procedure
+    begin
+      F.Free;
+    end);
 end;
 type
   TFrameClass = class of TFrame;
@@ -143,6 +175,8 @@ begin
   begin
     FCurrent.Visible := False;
     FCurrent.Parent := nil;
+    // Ekran sa kog se vracamo vise ne treba - ranije je ostajao u memoriji zauvek.
+    OslobodiKasnije(FCurrent);
   end;
 
 

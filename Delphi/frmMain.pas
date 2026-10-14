@@ -10,8 +10,8 @@ uses
   FireDAC.Stan.Def, FireDAC.Stan.Pool, FireDAC.Phys, FireDAC.Phys.SQLite,
   FireDAC.Phys.SQLiteDef, FireDAC.Stan.ExprFuncs,
   FireDAC.Phys.SQLiteWrapper.Stat, FireDAC.FMXUI.Wait, Data.DB,
-  FireDAC.Comp.Client, FireDAC.Comp.DataSet, uUserStore, fraHome, System.IOUtils,
-  FMX.Objects;
+  FireDAC.Comp.Client, FireDAC.Comp.DataSet, uUserStore, System.IOUtils,
+  FMX.Objects, uPetModel;
 
 type
   TForm5 = class(TForm)
@@ -23,6 +23,7 @@ type
   private
     procedure KreirajTabele;
     procedure DodajKoloneAkoNedostaju;
+    procedure HesirajStareLozinke;
     procedure UcitajTestPodatke;
     procedure LoadPetsFromDB;
     procedure SeedUsluga(const ANaziv: string; ACena: Double);
@@ -125,10 +126,6 @@ begin
     'WHERE NOT EXISTS (SELECT 1 FROM ZAPOSLENI WHERE KorisnickoIme = ''osoblje3'')'
   );
 
-  // Promena sifre za osoblje3 (i ako vec postoji u bazi)
-  FDConnection1.ExecSQL(
-    'UPDATE ZAPOSLENI SET Lozinka = ''nikola123'' WHERE KorisnickoIme = ''osoblje3'''
-  );
 
   // Jos jedan radnik (Jelena - osoblje4)
   FDConnection1.ExecSQL(
@@ -137,18 +134,11 @@ begin
     'WHERE NOT EXISTS (SELECT 1 FROM ZAPOSLENI WHERE KorisnickoIme = ''osoblje4'')'
   );
 
-  // Promena sifre za osoblje4 (i ako vec postoji u bazi)
-  FDConnection1.ExecSQL(
-    'UPDATE ZAPOSLENI SET Lozinka = ''jelena123'' WHERE KorisnickoIme = ''osoblje4'''
-  );
 
-  // Ukloni stare test naloge - ostaju samo trenutni nalozi
-  FDConnection1.ExecSQL(
-    'DELETE FROM ZAPOSLENI WHERE KorisnickoIme IN (''osoblje1'', ''osoblje2'')'
-  );
-  FDConnection1.ExecSQL(
-    'DELETE FROM MUSTERIJA WHERE KorisnickoIme = ''vlasnik2'''
-  );
+  // NAPOMENA: ovde su ranije bili UPDATE lozinki za osoblje3/osoblje4 i DELETE
+  // naloga osoblje1, osoblje2 i vlasnik2. Izvrsavali su se pri SVAKOM pokretanju,
+  // pa su vracali promenjene lozinke na staro i brisali nove musterije sa tim
+  // korisnickim imenom. Jednokratno ciscenje je vec uradjeno, pa su uklonjeni.
 
   // Seed katalog usluga (cenovnik)
   SeedUsluga('Setnja', 500);
@@ -228,6 +218,7 @@ begin
     DB := FDConnection1;
     KreirajTabele;
     DodajKoloneAkoNedostaju;
+    HesirajStareLozinke;
     UcitajTestPodatke;
     LoadPetsFromDB;
     TNavFrames.Init(layHost);
@@ -355,6 +346,10 @@ begin
   TryAdd('DNEVNA_AKTIVNOST', 'Sifra_resursa INT');
   TryAdd('DNEVNA_AKTIVNOST', 'Kolicina_Utroska REAL');
 
+  // Prijem i odjava ljubimca (boravak u pansionu i obracun)
+  TryAdd('pets', 'DatumPrijema DATETIME');
+  TryAdd('pets', 'DatumOdjave DATETIME');
+
   // Ispravi stare zapise sa Admin/Adminovic -> Osoblje/Osobljic
   FDConnection1.ExecSQL(
     'UPDATE ZAPOSLENI SET Prezime = ''Osobljic'' ' +
@@ -384,6 +379,45 @@ begin
   FDConnection1.ExecSQL(
     'UPDATE pets SET Alergije = ''Nema poznatih'' ' +
     'WHERE lower(name) = ''reks'' AND (Alergije IS NULL OR Alergije = '''')');
+end;
+
+// Lozinke se cuvaju kao SHA-256 hes (64 znaka). Sve lozinke koje su jos uvek
+// obican tekst (stari nalozi i test nalozi iz seed-a) pretvaraju se ovde.
+// Prijava ostaje ista: admin / admin123 i dalje radi.
+procedure TForm5.HesirajStareLozinke;
+
+  procedure Hesiraj(const ATabela, AKljuc: string);
+  var
+    Q, U: TFDQuery;
+  begin
+    Q := TFDQuery.Create(nil);
+    U := TFDQuery.Create(nil);
+    try
+      Q.Connection := FDConnection1;
+      U.Connection := FDConnection1;
+      Q.SQL.Text :=
+        'SELECT ' + AKljuc + ', Lozinka FROM ' + ATabela +
+        ' WHERE Lozinka IS NOT NULL AND length(Lozinka) <> 64';
+      Q.Open;
+      Q.FetchAll;
+      U.SQL.Text :=
+        'UPDATE ' + ATabela + ' SET Lozinka = :h WHERE ' + AKljuc + ' = :id';
+      while not Q.Eof do
+      begin
+        U.ParamByName('h').AsString   := HesLozinke(Q.FieldByName('Lozinka').AsString);
+        U.ParamByName('id').AsInteger := Q.FieldByName(AKljuc).AsInteger;
+        U.ExecSQL;
+        Q.Next;
+      end;
+    finally
+      U.Free;
+      Q.Free;
+    end;
+  end;
+
+begin
+  Hesiraj('ZAPOSLENI', 'Sifra_zaposlenog');
+  Hesiraj('MUSTERIJA', 'Sifra_musterije');
 end;
 
 procedure TForm5.UcitajTestPodatke;
@@ -457,7 +491,8 @@ begin
     Q.Connection := DB;
     Q.SQL.Text := 'SELECT id, name, species, breed, age, image_blob FROM pets ORDER BY id';
     Q.Open;
-    FillChar(Pets, SizeOf(Pets), 0);
+    for i := Low(Pets) to High(Pets) do
+      Pets[i] := Default(TPet); // FillChar nad zapisima sa stringovima curi memoriju
     i := 0;
     while (not Q.Eof) and (i <= High(Pets)) do
     begin

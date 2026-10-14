@@ -69,9 +69,10 @@ type
     procedure rectOstaloBtnClick(Sender: TObject);
     procedure rectPregledOstaloBtnClick(Sender: TObject);
     procedure lbLjubimciClick(Sender: TObject);
+    procedure lblImeZaposlenogClick(Sender: TObject);
 
   private
-    FPetIDs: array[0..19] of Integer;
+    FPetIDs: TArray<Integer>;  // ranije array[0..19] - 21. ljubimac je pisao van niza
     FPetCount: Integer;
     FCurrentActivityID: Integer;
     procedure UcitajLjubimce;
@@ -105,6 +106,7 @@ begin
   try
     lbLjubimci.Clear;
     FPetCount := 0;
+    FPetIDs := nil;
 
     Q := TFDQuery.Create(nil);
     try
@@ -114,11 +116,14 @@ begin
         '       p.Lokacija, p.Alergije, m.Ime, m.Prezime ' +
         'FROM pets p ' +
         'LEFT JOIN MUSTERIJA m ON m.Sifra_musterije = p.Sifra_musterije ' +
+        // Odjavljeni ljubimci nisu vise u pansionu - za njih se nista ne unosi
+        'WHERE COALESCE(p.Status, ''Aktivan'') <> ''Odjavljen'' ' +
         'ORDER BY p.name';
       Q.Open;
 
       while not Q.Eof do
       begin
+        SetLength(FPetIDs, FPetCount + 1);
         FPetIDs[FPetCount] := Q.FieldByName('id').AsInteger;
 
         Item := TListBoxItem.Create(lbLjubimci);
@@ -228,7 +233,8 @@ end;
 procedure TFrameOsoblje.Loaded;
 begin
   inherited;
-  lblImeZaposlenog.Text := LoggedInImePrezime;
+  lblImeZaposlenog.Text := LoggedInImePrezime + '  ·  promeni lozinku';
+  lblImeZaposlenog.Width := 215;
   UcitajLjubimce;
   AzurirajBrojeve;
 end;
@@ -430,7 +436,7 @@ end;
 procedure TFrameOsoblje.rectZavrsiBtnClick(Sender: TObject);
 var
   Q: TFDQuery;
-  dtOd, dtDo: TDateTime;
+  dtOd, dtDo, tKraj: TDateTime;
   nMinuta: Int64;
   sTrajanje: string;
   parts: TArray<string>;
@@ -445,55 +451,62 @@ begin
     ShowMessage('Pogresno vreme! Format: hh:nn (npr. 11:30)');
     Exit;
   end;
-
-  dtDo := Trunc(Now) + EncodeTime(nH, nM, 0, 0);
+  tKraj := EncodeTime(nH, nM, 0, 0);
 
   Q := TFDQuery.Create(nil);
   try
-    Q.Connection := DB;
+    try
+      Q.Connection := DB;
 
-    // Uzmi VremeOd radi trajanja
-    Q.SQL.Text :=
-      'SELECT VremeOd FROM DNEVNA_AKTIVNOST WHERE Sifra_aktivnosti = :id';
-    Q.ParamByName('id').AsInteger := FCurrentActivityID;
-    Q.Open;
-
-    if not Q.IsEmpty then
-    begin
-      dtOd := Q.FieldByName('VremeOd').AsDateTime;
-      if dtDo < dtOd then
-        dtDo := dtDo + 1;
-      nMinuta := MinutesBetween(dtDo, dtOd);
-      if nMinuta < 60 then
-        sTrajanje := IntToStr(nMinuta) + ' min'
+      // Uzmi VremeOd radi trajanja
+      Q.SQL.Text :=
+        'SELECT VremeOd FROM DNEVNA_AKTIVNOST WHERE Sifra_aktivnosti = :id';
+      Q.ParamByName('id').AsInteger := FCurrentActivityID;
+      Q.Open;
+      if not Q.IsEmpty then
+      begin
+        dtOd := Q.FieldByName('VremeOd').AsDateTime;
+        // Kraj se racuna od dana kada je aktivnost POCELA (ranije od danasnjeg dana,
+        // pa je aktivnost zapoceta juce dobijala pogresno trajanje).
+        dtDo := Trunc(dtOd) + tKraj;
+        if dtDo < dtOd then
+          dtDo := dtDo + 1;
+        nMinuta := MinutesBetween(dtDo, dtOd);
+        if nMinuta < 60 then
+          sTrajanje := IntToStr(nMinuta) + ' min'
+        else
+          sTrajanje := IntToStr(nMinuta div 60) + 'h ' +
+                       IntToStr(nMinuta mod 60) + 'min';
+      end
       else
-        sTrajanje := IntToStr(nMinuta div 60) + 'h ' +
-                     IntToStr(nMinuta mod 60) + 'min';
-    end
-    else
-      sTrajanje := '0 min';
+      begin
+        dtDo := Trunc(Now) + tKraj;
+        sTrajanje := '0 min';
+      end;
+      Q.Close;
 
-    Q.Close;
-    Q.SQL.Text :=
-      'UPDATE DNEVNA_AKTIVNOST SET ' +
-      '  VremeDo = :do_, ' +
-      '  DuzinaTrajanja = :traj, ' +
-      '  StatusAktivnosti = ''Zavrseno'' ' +
-      'WHERE Sifra_aktivnosti = :id';
-    Q.ParamByName('do_').AsDateTime  := dtDo;
-    Q.ParamByName('traj').AsString   := sTrajanje;
-    Q.ParamByName('id').AsInteger    := FCurrentActivityID;
-    Q.ExecSQL;
+      Q.SQL.Text :=
+        'UPDATE DNEVNA_AKTIVNOST SET ' +
+        '  VremeDo = :do_, ' +
+        '  DuzinaTrajanja = :traj, ' +
+        '  StatusAktivnosti = ''Zavrseno'' ' +
+        'WHERE Sifra_aktivnosti = :id';
+      Q.ParamByName('do_').AsDateTime  := dtDo;
+      Q.ParamByName('traj').AsString   := sTrajanje;
+      Q.ParamByName('id').AsInteger    := FCurrentActivityID;
+      Q.ExecSQL;
 
-    rectPopupUToku.Visible := False;
-    FCurrentActivityID := 0;
-    AzurirajBrojeve;
-    ShowMessage('Aktivnost zavrsena! Trajanje: ' + sTrajanje);
-  except
-    on E: Exception do
-      ShowMessage('Greska: ' + E.Message);
+      rectPopupUToku.Visible := False;
+      FCurrentActivityID := 0;
+      AzurirajBrojeve;
+      ShowMessage('Aktivnost zavrsena! Trajanje: ' + sTrajanje);
+    except
+      on E: Exception do
+        ShowMessage('Greska: ' + E.Message);
+    end;
+  finally
+    Q.Free;
   end;
-  Q.Free;
 end;
 
 // -------------------------------------------------------
@@ -512,6 +525,11 @@ begin
   LoggedInImePrezime := '';
   SelectedPetID      := 0;
   TNavFrames.GoLogin;
+end;
+
+procedure TFrameOsoblje.lblImeZaposlenogClick(Sender: TObject);
+begin
+  PromeniLozinkuZaposlenog(LoggedInUserID);
 end;
 
 procedure TFrameOsoblje.Show;
