@@ -489,6 +489,41 @@
               ]
             }
           }
+        },
+        {
+          "name": "Postavi sliku (vlasnik ili admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "description": "U tabu Body izaberi fajl za polje 'slika' (JPEG, PNG ili WebP, najviše 5 MB). Vlasnik samo za svog ljubimca.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "slika",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/ljubimci/{{ljubimacId}}/slika",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ljubimci",
+                "{{ljubimacId}}",
+                "slika"
+              ]
+            }
+          }
         }
       ]
     },

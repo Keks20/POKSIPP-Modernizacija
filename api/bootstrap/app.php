@@ -21,9 +21,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'uloga' => ProveraUloge::class,
         ]);
 
-        // API nema stranicu za prijavu: neprijavljen korisnik dobija 401 JSON,
-        // a ne preusmerenje na rutu 'login' (koja ne postoji).
-        $middleware->redirectGuestsTo(fn (Request $request) => $request->is('api/*') ? null : '/');
+        // Neprijavljen korisnik: API dobija 401 JSON, a web stranica ide na prijavu.
+        $middleware->redirectGuestsTo(fn (Request $request) => $request->is('api/*') ? null : route('prijava'));
+        // Vec prijavljen vlasnik koji otvori /prijava ide na svoje ljubimce
+        $middleware->redirectUsersTo(fn () => route('ljubimci.index'));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

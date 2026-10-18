@@ -95,13 +95,10 @@ var
   imgPet: TImage;
   layText: TLayout;
   lblName, lblSpecies, lblOwner: TLabel;
-  sSlikes, sImgFile: string;
+  bImaSliku: Boolean;
+  rectBezSlike: TRectangle;
+  lblSlovo: TLabel;
 begin
-  // Pronadji folder sa slikama (exe_dir/slike ili ../../slike za Debug build)
-  sSlikes := ExtractFilePath(ParamStr(0)) + 'slike';
-  if not DirectoryExists(sSlikes) then
-    sSlikes := ExpandFileName(ExtractFilePath(ParamStr(0)) + '..\..\slike');
-
   lbLjubimci.BeginUpdate;
   try
     lbLjubimci.Clear;
@@ -141,25 +138,49 @@ begin
         imgPet.WrapMode   := TImageWrapMode.Fit;
         imgPet.HitTest    := False;
 
-        // Prioritet: slike folder (ispravne slike), pa tek BLOB kao fallback
-        sImgFile := IncludeTrailingPathDelimiter(sSlikes) +
-          LowerCase(Q.FieldByName('species').AsString) + '.png';
-        if FileExists(sImgFile) then
-          imgPet.Bitmap.LoadFromFile(sImgFile)
-        else
+        // Slika iz baze (vlasnik je postavlja preko web stranice). Ako je nema,
+        // prikazuje se sivo polje sa prvim slovom imena - isto kao na sajtu.
+        bImaSliku := False;
+        blobBytes := Q.FieldByName('image_blob').AsBytes;
+        if Length(blobBytes) > 0 then
         begin
-          blobBytes := Q.FieldByName('image_blob').AsBytes;
-          if Length(blobBytes) > 0 then
-          begin
-            Stream := TMemoryStream.Create;
+          Stream := TMemoryStream.Create;
+          try
             try
               Stream.WriteBuffer(blobBytes[0], Length(blobBytes));
               Stream.Position := 0;
               imgPet.Bitmap.LoadFromStream(Stream);
-            finally
-              Stream.Free;
+              bImaSliku := True;
+            except
+              bImaSliku := False; // ostecena slika ne sme da obori listu
             end;
+          finally
+            Stream.Free;
           end;
+        end;
+
+        if not bImaSliku then
+        begin
+          rectBezSlike := TRectangle.Create(imgPet);
+          rectBezSlike.Parent := imgPet;
+          rectBezSlike.Align := TAlignLayout.Client;
+          rectBezSlike.Fill.Color := $FFE7E2D6;   // ista boja kao na sajtu
+          rectBezSlike.Stroke.Kind := TBrushKind.None;
+          rectBezSlike.XRadius := 8;
+          rectBezSlike.YRadius := 8;
+          rectBezSlike.HitTest := False;
+
+          lblSlovo := TLabel.Create(rectBezSlike);
+          lblSlovo.Parent := rectBezSlike;
+          lblSlovo.Align := TAlignLayout.Client;
+          lblSlovo.StyledSettings := [];          // inace stil prepise font i boju
+          lblSlovo.TextSettings.Font.Size := 28;
+          lblSlovo.TextSettings.Font.Style := [TFontStyle.fsBold];
+          lblSlovo.TextSettings.FontColor := $FFA39C8B;
+          lblSlovo.TextSettings.HorzAlign := TTextAlign.Center;
+          lblSlovo.TextSettings.VertAlign := TTextAlign.Center;
+          lblSlovo.Text := AnsiUpperCase(Copy(Trim(Q.FieldByName('name').AsString), 1, 1));
+          lblSlovo.HitTest := False;
         end;
 
         // --- Layout za tekst (desno) ---

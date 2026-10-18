@@ -12,6 +12,7 @@ use App\Models\Ljubimac;
 use App\Models\Musterija;
 use App\Models\Zaposleni;
 use App\Services\ObracunBoravka;
+use App\Services\ObradaSlike;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -207,17 +208,28 @@ class LjubimacController extends Controller
         ]);
     }
 
-    /** Slika ljubimca, kako je sačuvana u Delphiju (image_blob). */
-    public function slika(Request $request, int $id): Response
+    /** Slika ljubimca (image_blob, ista kolona koju prikazuje Delphi). */
+    public function slika(Request $request, int $id, ObradaSlike $slike): Response
     {
-        $this->vidljiv($request, $id);
+        return $slike->odgovor($this->vidljiv($request, $id));
+    }
 
-        $slika = Ljubimac::whereKey($id)->value('image_blob');
-        abort_if($slika === null || $slika === '', 404, 'Ljubimac nema sliku.');
+    /**
+     * Nova slika (vlasnik za svog ljubimca, admin za bilo kog).
+     * Šalje se kao multipart/form-data, polje "slika".
+     */
+    public function postaviSliku(Request $request, int $id, ObradaSlike $slike): JsonResponse
+    {
+        $ljubimac = $this->vidljiv($request, $id);
+        $request->validate(ObradaSlike::pravila(), ObradaSlike::poruke());
 
-        $tip = (new \finfo(FILEINFO_MIME_TYPE))->buffer($slika) ?: 'application/octet-stream';
+        $jpeg = $slike->uJpeg($request->file('slika'));
+        $slike->sacuvaj($ljubimac, $jpeg);
 
-        return response($slika, 200, ['Content-Type' => $tip]);
+        return response()->json([
+            'poruka' => 'Slika je sačuvana.',
+            'velicina_kb' => (int) ceil(strlen($jpeg) / 1024),
+        ]);
     }
 
     /** Ljubimac koga prijavljeni korisnik sme da vidi; tuđi ljubimac = 404 (ne odaje da postoji). */

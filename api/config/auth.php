@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Musterija;
 use App\Models\Zaposleni;
 
 return [
@@ -42,6 +43,12 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+
+        // Web stranica za vlasnike ljubimaca (prijava preko sesije, tabela MUSTERIJA)
+        'vlasnik' => [
+            'driver' => 'session',
+            'provider' => 'musterije',
+        ],
     ],
 
     /*
@@ -65,6 +72,11 @@ return [
         'users' => [
             'driver' => 'eloquent',
             'model' => env('AUTH_MODEL', Zaposleni::class),
+        ],
+
+        'musterije' => [
+            'driver' => 'eloquent',
+            'model' => Musterija::class,
         ],
 
         // 'users' => [

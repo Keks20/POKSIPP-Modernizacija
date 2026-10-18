@@ -41,6 +41,11 @@ Route::middleware(['auth:sanctum', 'uloga:admin,zaposleni'])->group(function () 
     Route::get('/musterije', [SifarnikController::class, 'musterije']);
 });
 
+// Slika: vlasnik za svoje ljubimce, admin za sve
+Route::middleware(['auth:sanctum', 'uloga:admin,musterija'])->group(function () {
+    Route::post('/ljubimci/{id}/slika', [LjubimacController::class, 'postaviSliku'])->whereNumber('id');
+});
+
 // Samo admin
 Route::middleware(['auth:sanctum', 'uloga:admin'])->group(function () {
     Route::get('/zaposleni', [SifarnikController::class, 'zaposleni']);

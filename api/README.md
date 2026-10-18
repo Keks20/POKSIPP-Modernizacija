@@ -26,6 +26,17 @@ REST API nad istom MySQL bazom `poksipp` koju pravi migracija iz Faze 2. Tabele 
 
 Podešavanja baze su u `.env` (`DB_DATABASE=poksipp`, `DB_USERNAME=root`, prazna lozinka, kao u XAMPP-u).
 
+## Web stranica za vlasnike
+
+Ista aplikacija ima i stranicu za vlasnike ljubimaca: `http://127.0.0.1:8000` (posle `php artisan serve`).
+
+- Prijava istim nalogom kao u Delphiju (korisničko ime ili email). Zaposleni koriste Delphi.
+- **Moji ljubimci:** kartice sa slikom, boksom i statusom. Vlasnik vidi samo svoje ljubimce.
+- **Detalji:** račun za boravak i dnevnik (sve, aktivnosti, hrana, ostalo), 20 zapisa po strani.
+- **Slika:** vlasnik postavlja sliku svog ljubimca. Server je okrene kako treba (EXIF sa telefona), smanji na najviše 800 px i snimi kao JPEG bez metapodataka (nestaje i GPS lokacija). Slika ide u `pets.image_blob`, pa je odmah vidi i osoblje u Delphiju.
+
+Za slike PHP treba ekstenzije `gd` i `exif` i veći limit za otpremanje (`upload_max_filesize = 6M`, `memory_limit = 256M` u `php.ini`).
+
 ## Prijava i uloge
 
 `POST /api/prijava` sa `korisnicko_ime` i `lozinka` vraća token. Svaki sledeći zahtev ga šalje u zaglavlju:
@@ -59,6 +70,7 @@ Zaposleni koga admin deaktivira u Delphiju gubi pristup odmah, i kad je token ve
 | GET | `/ljubimci/{id}/dnevnik` | prijavljeni | dnevnik, 50 po strani (`?kategorija=Aktivnosti`, `Hrana`, `Ostalo`) |
 | GET | `/ljubimci/{id}/racun` | prijavljeni | račun za boravak |
 | GET | `/ljubimci/{id}/slika` | prijavljeni | slika (JPEG/PNG) |
+| POST | `/ljubimci/{id}/slika` | vlasnik (svoj), admin | nova slika, polje `slika` (multipart) |
 | GET | `/resursi` | admin, zaposleni | magacin i šta je ispod minimuma |
 | GET | `/musterije` | admin, zaposleni | vlasnici |
 | GET | `/zaposleni` | admin | zaposleni bez admina |
@@ -108,7 +120,10 @@ Delphi aplikacija i API rade nad istom MySQL bazom `poksipp`. Ljubimac primljen 
 | `app/Http/Resources` | izgled JSON odgovora (srpski ključevi, nezavisni od naziva kolona) |
 | `app/Http/Middleware/ProveraUloge.php` | provera uloge (`uloga:admin`) |
 | `app/Services/ObracunBoravka.php` | račun |
+| `app/Services/ObradaSlike.php` | provera, okretanje i smanjenje slike |
+| `app/Http/Controllers/Web`, `resources/views/web` | web stranica za vlasnike |
+| `routes/web.php` | rute web stranice |
 | `app/Support/Lozinka.php` | SHA-256, isto kao Delphi i migracija |
 | `routes/api.php` | sve rute |
-| `tests/Feature` | 33 testa |
+| `tests/Feature` | 49 testova |
 | `postman` | Postman kolekcija |
