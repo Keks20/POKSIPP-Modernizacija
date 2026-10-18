@@ -8,6 +8,8 @@ System.SysUtils, System.Generics.Collections,FireDAC.Comp.Client,uPetModel;
 var
    // Baza konekcija
   DB: TFDConnection;
+  // True = zajednicka MySQL baza (XAMPP), False = stara lokalna SQLite baza
+  JeMySQL: Boolean;
 
   // Ljubimci niz
   Pets: array[0..9] of TPet;
@@ -243,6 +245,13 @@ begin
       if sNova <> sPonovo then
       begin
         ShowMessage('Nove lozinke se ne poklapaju.');
+        Exit;
+      end;
+      // MySQL za UPDATE vraca broj IZMENJENIH redova: ista lozinka = 0 redova,
+      // pa bi poruka ispod pogresno rekla da trenutna lozinka nije tacna
+      if sNova = sStara then
+      begin
+        ShowMessage('Nova lozinka mora biti drugacija od trenutne.');
         Exit;
       end;
 

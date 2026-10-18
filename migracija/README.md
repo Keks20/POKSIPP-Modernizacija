@@ -30,7 +30,28 @@ Original se ne menja: SQLite baza se otvara samo za čitanje.
 
 4. Rezultat pogledaj u phpMyAdmin-u (`http://localhost/phpmyadmin`), u bazi `poksipp`.
 
-Migracija može da se pokrene koliko god puta: svaki put briše tabele i pravi ih iznova.
+Migracija briše tabele i pravi ih iznova. Zato se, od Faze 4, pokreće samo jednom.
+
+## Od Faze 4: migracija se pokreće samo jednom
+
+Od Faze 4 Delphi aplikacija i Laravel API upisuju direktno u MySQL. Ponovna migracija bi obrisala sve što je uneto posle prve migracije.
+
+Zato `migrate.py` staje ako baza `poksipp` već ima podatke:
+
+```
+MIGRACIJA NIJE POKRENUTA: baza 'poksipp' vec ima 18 redova.
+```
+
+Ako baš treba da se napuni iznova iz SQLite-a (na primer na drugom računaru za testiranje):
+
+```
+D:\xamppp\mysql\bin\mysqldump -u root poksipp > rezerva.sql
+python migrate.py --prepisi
+```
+
+Rezervna kopija se vraća sa `D:\xamppp\mysql\bin\mysql -u root poksipp < rezerva.sql`.
+
+`verify.py` poredi MySQL sa SQLite bazom, pa posle prvog unosa u Delphiju ili API-ju javlja razlike. To je očekivano: SQLite više nije glavna baza.
 
 Ostali parametri (druga baza, lozinka, port) se vide sa `python migrate.py --help`. Primer:
 

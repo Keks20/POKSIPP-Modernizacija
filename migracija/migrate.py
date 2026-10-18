@@ -34,6 +34,33 @@ def izvrsi_semu(cur, putanja):
             cur.execute(naredba)
 
 
+def zastita_od_brisanja(cur, a):
+    """Od Faze 4 MySQL je glavna baza: Delphi i API upisuju direktno u nju.
+    Migracija brise i ponovo pravi tabele, pa bi obrisala sve uneto posle
+    prve migracije. Zato staje ako baza vec ima podatke, osim uz --prepisi."""
+    cur.execute(
+        "SELECT table_name FROM information_schema.tables "
+        "WHERE table_schema = %s AND lower(table_name) IN "
+        "('zaposleni','musterija','pets','usluga','resurs','dnevna_aktivnost')",
+        (a.database,))
+    postojece = [r[0] for r in cur.fetchall()]
+    redova = 0
+    for t in postojece:
+        cur.execute(f"SELECT COUNT(*) FROM `{a.database}`.`{t}`")
+        redova += cur.fetchone()[0]
+    if redova and not a.prepisi:
+        print(f"\nMIGRACIJA NIJE POKRENUTA: baza '{a.database}' vec ima {redova} redova.")
+        print("Od Faze 4 Delphi i API upisuju direktno u MySQL, pa bi migracija")
+        print("obrisala sve sto je uneto posle prve migracije.")
+        print("\nAko bas hoces da je napunis iznova iz SQLite-a (npr. na test racunaru):")
+        print("  1. napravi rezervnu kopiju:  D:\\xamppp\\mysql\\bin\\mysqldump -u root "
+              f"{a.database} > rezerva.sql")
+        print("  2. pokreni:                  python migrate.py --prepisi")
+        sys.exit(1)
+    if redova:
+        print(f"UPOZORENJE: --prepisi, brisem {redova} postojecih redova u '{a.database}'.")
+
+
 def main():
     a = argumenti("Migracija POKSIPP baze sa SQLite-a na MySQL")
     ovde = os.path.dirname(os.path.abspath(__file__))
@@ -54,6 +81,7 @@ def main():
     # --- 3. Baza i tabele ---
     con = mysql_konekcija(a, sa_bazom=False)
     cur = con.cursor()
+    zastita_od_brisanja(cur, a)
     cur.execute(f"CREATE DATABASE IF NOT EXISTS `{a.database}` "
                 f"CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
     cur.execute(f"USE `{a.database}`")

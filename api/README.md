@@ -91,12 +91,12 @@ php artisan test
 
 Testovi rade nad posebnom bazom **`poksipp_test`**, a ne nad `poksipp`. Prave je sami, iz iste šeme koju koristi migracija (`..\migracija\schema_mysql.sql`). MySQL u XAMPP-u mora biti pokrenut. Ako se baza u `phpunit.xml` ne završava na `_test`, testovi odbijaju da rade, jer brišu tabele.
 
-## Važno do Faze 4
+## Zajednička baza (od Faze 4)
 
-Delphi aplikacija još radi nad SQLite fajlom, a API nad MySQL kopijom koju je napravio `migrate.py`. Dok Delphi ne pređe na MySQL (Faza 4):
+Delphi aplikacija i API rade nad istom MySQL bazom `poksipp`. Ljubimac primljen u Delphiju odmah se vidi u API-ju, i obrnuto.
 
-- izmene u Delphiju se **ne vide** u API-ju dok ponovo ne pokreneš `migrate.py`;
-- `migrate.py` **briše i ponovo puni** tabele POKSIPP-a, pa se gube ljubimci primljeni preko API-ja. Tokeni ostaju.
+- Delphi se povezuje šifrovano (TLS), sa proverom sertifikata servera. Podešavanja su u `poksi.ini` pored `poksi.exe`.
+- `migrate.py` se više ne pokreće: odbija da radi kad baza ima podatke, jer bi ih obrisala (vidi `..\migracija\README.md`).
 
 ## Šta je gde
 

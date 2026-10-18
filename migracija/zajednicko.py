@@ -262,6 +262,9 @@ def argumenti(opis):
     p.add_argument("--user", default="root")
     p.add_argument("--password", default="", help="XAMPP root nema lozinku")
     p.add_argument("--database", default="poksipp")
+    p.add_argument("--prepisi", action="store_true",
+                   help="migrate.py: obrisi i ponovo napuni bazu i kad vec ima podatke "
+                        "(od Faze 4 Delphi i API upisuju direktno u MySQL!)")
     return p.parse_args()
 
 

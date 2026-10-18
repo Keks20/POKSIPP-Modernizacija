@@ -3,15 +3,16 @@ interface
 
 uses
   System.SysUtils, System.Types, System.UITypes, System.Classes, System.Variants,
-  FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Dialogs, FMX.Layouts,
+  System.StrUtils, FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Dialogs, FMX.Layouts,
   uNavFrames, fraWelcome, FireDAC.Stan.Intf, FireDAC.Stan.Option,
   FireDAC.Stan.Param, FireDAC.Stan.Error, FireDAC.DatS, FireDAC.Phys.Intf,
   FireDAC.DApt.Intf, FireDAC.Stan.Async, FireDAC.DApt, FireDAC.UI.Intf,
   FireDAC.Stan.Def, FireDAC.Stan.Pool, FireDAC.Phys, FireDAC.Phys.SQLite,
   FireDAC.Phys.SQLiteDef, FireDAC.Stan.ExprFuncs,
   FireDAC.Phys.SQLiteWrapper.Stat, FireDAC.FMXUI.Wait, Data.DB,
+  FireDAC.Phys.MySQL, FireDAC.Phys.MySQLDef,
   FireDAC.Comp.Client, FireDAC.Comp.DataSet, uUserStore, System.IOUtils,
-  FMX.Objects, uPetModel;
+  System.IniFiles, FMX.Objects, uPetModel;
 
 type
   TForm5 = class(TForm)
@@ -21,6 +22,11 @@ type
     procedure FormCreate(Sender: TObject);
     procedure FDConnection1AfterConnect(Sender: TObject);
   private
+    FMySQLLink: TFDPhysMySQLDriverLink;
+    function NadjiKlijentDLL(const AIme: string): string;
+    procedure PoveziSQLite;
+    procedure PoveziMySQL(Ini: TIniFile);
+    procedure ProveriMySQLSemu;
     procedure KreirajTabele;
     procedure DodajKoloneAkoNedostaju;
     procedure HesirajStareLozinke;
@@ -40,6 +46,11 @@ implementation
 
 procedure TForm5.FDConnection1AfterConnect(Sender: TObject);
 begin
+  // Na MySQL-u tabele pravi migracija (migracija\schema_mysql.sql), a podatke
+  // prenosi migrate.py. Ovde se nista ne pravi i ne puni.
+  if JeMySQL then
+    Exit;
+
   FDConnection1.ExecSQL(
     'CREATE TABLE IF NOT EXISTS ZAPOSLENI (' +
     'Sifra_zaposlenog INTEGER PRIMARY KEY AUTOINCREMENT, ' +
@@ -195,7 +206,70 @@ begin
   end;
 end;
 
+// -------------------------------------------------------
+//  Baza se bira u poksi.ini pored poksi.exe (pravi se sam pri prvom pokretanju):
+//    [Baza]
+//    Tip=MySQL        (ili SQLite - stara lokalna baza Baza\users.db)
+//    Server=127.0.0.1
+//    Port=3306
+//    Baza=poksipp
+//    Korisnik=root
+//    Lozinka=
+//    KlijentDLL=libmariadb.dll
+//    SSL=1
+//    SSL_CA=D:\xamppp\mysql\certs\ca.pem
+//  Tip=SQLite je put nazad ako MySQL ne radi (strangler fig: stari sistem
+//  ostaje upotrebljiv dok se novi ne dokaze).
+// -------------------------------------------------------
 procedure TForm5.FormCreate(Sender: TObject);
+var
+  Ini: TIniFile;
+  sIni: string;
+begin
+  sIni := ChangeFileExt(ParamStr(0), '.ini');
+  Ini := TIniFile.Create(sIni);
+  try
+    // Prvo pokretanje: upisi podrazumevana podesavanja da se vide i mogu menjati
+    if not FileExists(sIni) then
+    begin
+      Ini.WriteString('Baza', 'Tip', 'MySQL');
+      Ini.WriteString('Baza', 'Server', '127.0.0.1');
+      Ini.WriteInteger('Baza', 'Port', 3306);
+      Ini.WriteString('Baza', 'Baza', 'poksipp');
+      Ini.WriteString('Baza', 'Korisnik', 'root');
+      Ini.WriteString('Baza', 'Lozinka', '');
+      Ini.WriteString('Baza', 'KlijentDLL', 'libmariadb.dll');
+      Ini.WriteInteger('Baza', 'SSL', 1);
+      Ini.WriteString('Baza', 'SSL_CA', 'D:\xamppp\mysql\certs\ca.pem');
+      Ini.UpdateFile;
+    end;
+
+    JeMySQL := not SameText(Trim(Ini.ReadString('Baza', 'Tip', 'MySQL')), 'SQLite');
+
+    try
+      if JeMySQL then
+        PoveziMySQL(Ini)
+      else
+        PoveziSQLite;
+
+      DB := FDConnection1;
+      HesirajStareLozinke;
+      LoadPetsFromDB;
+      TNavFrames.Init(layHost);
+      TNavFrames.Go(TFrame1.Create(nil));
+    except
+      on E: Exception do
+        ShowMessage('Greska pri povezivanju sa bazom (' +
+          IfThen(JeMySQL, 'MySQL', 'SQLite') + '):' + #13#10 + E.Message);
+    end;
+  finally
+    Ini.Free;
+  end;
+end;
+
+// Stara lokalna baza: Baza\users.db pored exe fajla. Tabele i test podaci
+// se prave ovde (i u FDConnection1AfterConnect), kao i ranije.
+procedure TForm5.PoveziSQLite;
 var
   LDatabasePath: string;
 begin
@@ -209,23 +283,109 @@ begin
   end;
 
   FDConnection1.Connected := False;
+  FDConnection1.Params.Clear;
   FDConnection1.DriverName := 'SQLITE';
   FDConnection1.Params.Values['Database'] :=
     IncludeTrailingPathDelimiter(LDatabasePath) + 'users.db';
+  FDConnection1.Open;
+  DB := FDConnection1;
+  KreirajTabele;
+  DodajKoloneAkoNedostaju;
+  UcitajTestPodatke;
+end;
 
+// Klijentska biblioteka (libmariadb.dll iz MariaDB Connector/C) se trazi:
+//  1. tacno na putanji iz poksi.ini, ako je data puna putanja;
+//  2. pored poksi.exe;
+//  3. u instalaciji MariaDB Connector/C (Program Files\MariaDB\...).
+// Mora da odgovara platformi: Win64 aplikacija = 64-bitni DLL.
+function TForm5.NadjiKlijentDLL(const AIme: string): string;
+var
+  sMariaDB: string;
+  Nadjeni: TArray<string>;
+begin
+  if ExtractFilePath(AIme) <> '' then
+    Exit(AIme);
+
+  Result := ExtractFilePath(ParamStr(0)) + AIme;
+  if FileExists(Result) then
+    Exit;
+
+  sMariaDB := IncludeTrailingPathDelimiter(GetEnvironmentVariable('ProgramFiles')) + 'MariaDB';
+  if TDirectory.Exists(sMariaDB) then
+  begin
+    Nadjeni := TDirectory.GetFiles(sMariaDB, AIme, TSearchOption.soAllDirectories);
+    if Length(Nadjeni) > 0 then
+      Exit(Nadjeni[0]);
+  end;
+end;
+
+// Zajednicka MySQL/MariaDB baza (XAMPP), ista koju koristi Laravel API.
+procedure TForm5.PoveziMySQL(Ini: TIniFile);
+var
+  sDll, sCA: string;
+begin
+  sDll := NadjiKlijentDLL(Trim(Ini.ReadString('Baza', 'KlijentDLL', 'libmariadb.dll')));
+  if not FileExists(sDll) then
+    raise Exception.Create(
+      'Nema klijentske biblioteke za MySQL: ' + sDll + #13#10#13#10 +
+      'Instaliraj MariaDB Connector/C (64-bit) ili iskopiraj libmariadb.dll ' +
+      'pored poksi.exe. Privremeno mozes u poksi.ini da postavis Tip=SQLite.');
+
+  // VendorLib mora da se postavi pre prvog otvaranja konekcije
+  FMySQLLink := TFDPhysMySQLDriverLink.Create(Self);
+  FMySQLLink.VendorLib := sDll;
+
+  FDConnection1.Connected := False;
+  FDConnection1.Params.Clear;
+  FDConnection1.DriverName := 'MySQL';
+  FDConnection1.Params.Values['Server']    := Ini.ReadString('Baza', 'Server', '127.0.0.1');
+  FDConnection1.Params.Values['Port']      := IntToStr(Ini.ReadInteger('Baza', 'Port', 3306));
+  FDConnection1.Params.Values['Database']  := Ini.ReadString('Baza', 'Baza', 'poksipp');
+  FDConnection1.Params.Values['User_Name'] := Ini.ReadString('Baza', 'Korisnik', 'root');
+  FDConnection1.Params.Values['Password']  := Ini.ReadString('Baza', 'Lozinka', '');
+  // c, c, s, z, dj ispravno u oba smera
+  FDConnection1.Params.Values['CharacterSet'] := 'utf8mb4';
+  // TINYINT(1) (kolona Dostupan) ostaje broj 0/1, kao u SQLite-u
+  FDConnection1.Params.Values['TinyIntFormat'] := 'Integer';
+  // Sifrovana veza (TLS). MariaDB Connector/C 3.4 bez nje odbija da se poveze.
+  // Klijent proverava da je sertifikat servera potpisao NAS CA (ca.pem), pa se
+  // ne moze podmetnuti drugi server.
+  if Ini.ReadInteger('Baza', 'SSL', 1) = 1 then
+  begin
+    sCA := Trim(Ini.ReadString('Baza', 'SSL_CA', ''));
+    if (sCA = '') or not FileExists(sCA) then
+      raise Exception.Create(
+        'Nema sertifikata za sifrovanu vezu (SSL_CA u poksi.ini):' + #13#10 + sCA);
+    FDConnection1.Params.Values['UseSSL'] := 'True';
+    FDConnection1.Params.Values['SSL_ca'] := sCA;
+  end;
+  // Ako server prekine nekoriscenu vezu (wait_timeout), FireDAC se sam ponovo poveze
+  FDConnection1.ResourceOptions.AutoReconnect := True;
+  FDConnection1.Open;
+
+  ProveriMySQLSemu;
+end;
+
+// Jasna poruka ako baza postoji, ali migracija nije pokrenuta
+procedure TForm5.ProveriMySQLSemu;
+var
+  Q: TFDQuery;
+begin
+  Q := TFDQuery.Create(nil);
   try
-    FDConnection1.Open;
-    DB := FDConnection1;
-    KreirajTabele;
-    DodajKoloneAkoNedostaju;
-    HesirajStareLozinke;
-    UcitajTestPodatke;
-    LoadPetsFromDB;
-    TNavFrames.Init(layHost);
-    TNavFrames.Go(TFrame1.Create(nil));
-  except
-    on E: Exception do
-      ShowMessage('Greska pri povezivanju sa bazom: ' + E.Message);
+    Q.Connection := FDConnection1;
+    Q.SQL.Text :=
+      'SELECT COUNT(*) FROM information_schema.tables ' +
+      'WHERE table_schema = DATABASE() AND lower(table_name) IN ' +
+      '(''zaposleni'', ''musterija'', ''pets'', ''usluga'', ''resurs'', ''dnevna_aktivnost'')';
+    Q.Open;
+    if Q.Fields[0].AsInteger < 6 then
+      raise Exception.Create(
+        'U bazi ' + FDConnection1.Params.Values['Database'] + ' nedostaju tabele POKSIPP-a.' + #13#10 +
+        'Pokreni migraciju: migracija\migrate.py (vidi migracija\README.md).');
+  finally
+    Q.Free;
   end;
 end;
 
