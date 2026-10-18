@@ -1,0 +1,72 @@
+# POKSIPP u Docker-u: web stranica + API (Laravel) i MySQL baza (MariaDB).
+#
+# Pokretanje (iz ovog foldera):   docker compose up -d --build
+# Sajt:                           http://localhost:8080
+# Baza spolja (npr. HeidiSQL):    127.0.0.1, port 3307
+#
+# Portovi su namerno drugaciji od XAMPP-a (80 i 3306), pa oba mogu da rade istovremeno.
+# Detalji su u docker/README.md.
+
+name: poksipp
+
+services:
+  db:
+    # Ista grana MariaDB-a na kojoj prolaze svi testovi (10.11 LTS).
+    image: mariadb:10.11
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-poksipp_root}
+      MARIADB_DATABASE: poksipp
+      MARIADB_USER: poksipp
+      MARIADB_PASSWORD: ${DB_PASSWORD:-poksipp}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      # Slike ljubimaca idu u bazu; XAMPP ima 1 MB, ovde ima mesta
+      - --max-allowed-packet=16M
+    ports:
+      - "3307:3306"
+    volumes:
+      # Podaci baze prezive gasenje i ponovno pravljenje kontejnera
+      - db-podaci:/var/lib/mysql
+      # Pri PRVOM pokretanju: sema, pa tvoj dump (docker/podaci) ili demo podaci
+      - ./docker/db-init:/docker-entrypoint-initdb.d:ro
+      - ./migracija/schema_mysql.sql:/poksipp/schema_mysql.sql:ro
+      - ./docker/demo.sql:/poksipp/demo.sql:ro
+      - ./docker/podaci:/podaci:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      APP_NAME: POKSIPP
+      APP_ENV: local
+      APP_DEBUG: "false"
+      APP_KEY: ${APP_KEY:-}
+      APP_URL: http://localhost:8080
+      LOG_CHANNEL: stderr
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_DATABASE: poksipp
+      DB_USERNAME: poksipp
+      DB_PASSWORD: ${DB_PASSWORD:-poksipp}
+      SESSION_DRIVER: file
+      CACHE_STORE: file
+      QUEUE_CONNECTION: sync
+    ports:
+      - "8080:80"
+
+volumes:
+  db-podaci:

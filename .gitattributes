@@ -1,0 +1,5 @@
+# Skripte koje rade u Linux kontejneru moraju imati LF kraj reda,
+# i kad git na Windows-u pretvara ostale fajlove u CRLF.
+*.sh text eol=lf
+docker/** text eol=lf
+docker-compose.yml text eol=lf

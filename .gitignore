@@ -26,3 +26,12 @@ Delphi/Win32/Debug/Baza/
 
 # Python kes (migracija)
 __pycache__/
+
+# Docker: lozinke i kljuc (.env pored docker-compose.yml) i dump-ovi prave baze
+/.env
+docker/podaci/*.sql
+
+# Rezervne kopije baze imaju imena, telefone i heseve lozinki
+*.sql
+!migracija/schema_mysql.sql
+!docker/demo.sql

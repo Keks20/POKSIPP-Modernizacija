@@ -1,0 +1,22 @@
+# U image ide samo ono sto treba sajtu i API-ju (api/ i sema baze).
+# Sve ostalo je ovde da build bude brz i da tajne ne zavrse u image-u.
+.git
+Delphi
+docker/podaci
+**/*.sql
+!migracija/schema_mysql.sql
+**/*.pdf
+**/*.fig
+**/*.docx
+.env
+api/.env
+api/.env.*
+!api/.env.example
+api/vendor
+api/node_modules
+api/storage/logs/*
+api/storage/framework/cache/data/*
+api/storage/framework/sessions/*
+api/storage/framework/views/*
+api/.phpunit.result.cache
+migracija/__pycache__

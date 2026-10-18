@@ -1,0 +1,13 @@
+# Kopiraj ovaj fajl u koren repozitorijuma (pored docker-compose.yml) pod imenom ".env"
+# i popuni APP_KEY.
+# .env ne ide na GitHub (vidi .gitignore).
+
+# Kljuc za sesije i sifrovanje. U folderu api pokreni:
+#   php artisan key:generate --show
+# i ovde nalepi ceo rezultat (pocinje sa base64:).
+APP_KEY=
+
+# Lozinke za bazu u Docker-u (samo za tvoj racunar). Menjaju se PRE prvog pokretanja;
+# posle toga baza vec postoji u volume-u sa starim lozinkama.
+DB_PASSWORD=poksipp
+DB_ROOT_PASSWORD=poksipp_root
