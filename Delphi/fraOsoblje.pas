@@ -7,6 +7,7 @@ uses
   System.DateUtils,
   FMX.Types, FMX.Graphics, FMX.Controls, FMX.Forms, FMX.Dialogs, FMX.StdCtrls,
   FMX.Controls.Presentation, FMX.Layouts, FMX.Objects, FMX.ListBox, FMX.Edit,
+  FMX.Memo, FMX.Memo.Types, FMX.ScrollBox,
   FireDAC.Comp.Client, uUserStore, uNavFrames;
 
 type
@@ -31,6 +32,11 @@ type
     lblPopupAktVreme: TLabel;
     lblPopupAktStatus: TLabel;
     edtVremeZavrsetka: TEdit;
+    // Komentar i procena se unose tek po zavrsetku aktivnosti
+    lblKomentarZavrsetka: TLabel;
+    memoKomentarZavrsetka: TMemo;
+    lblProcenaZavrsetka: TLabel;
+    edtProcenaZavrsetka: TEdit;
 
     // --- PLAN ---
     lblPlanTitle: TLabel;
@@ -443,6 +449,8 @@ begin
     // Polje za stvarno vreme - prepopunjeno predvidjenim
     edtVremeZavrsetka.Text := FormatDateTime('hh:nn',
       Q.FieldByName('VremeDo').AsDateTime);
+    memoKomentarZavrsetka.Lines.Clear;
+    edtProcenaZavrsetka.Text := '';
 
     rectPopupUToku.Visible := True;
     rectPopupUToku.BringToFront;
@@ -506,14 +514,20 @@ begin
       end;
       Q.Close;
 
+      // Komentar i procena se upisuju sada, kad se zna kako je aktivnost prosla.
+      // Prazno polje ostaje NULL u bazi.
       Q.SQL.Text :=
         'UPDATE DNEVNA_AKTIVNOST SET ' +
         '  VremeDo = :do_, ' +
         '  DuzinaTrajanja = :traj, ' +
-        '  StatusAktivnosti = ''Zavrseno'' ' +
+        '  StatusAktivnosti = ''Zavrseno'', ' +
+        '  Komentar = NULLIF(:kom, ''''), ' +
+        '  ProcenaPonasanja = NULLIF(:proc, '''') ' +
         'WHERE Sifra_aktivnosti = :id';
       Q.ParamByName('do_').AsDateTime  := dtDo;
       Q.ParamByName('traj').AsString   := sTrajanje;
+      Q.ParamByName('kom').AsString    := Trim(memoKomentarZavrsetka.Text);
+      Q.ParamByName('proc').AsString   := Trim(edtProcenaZavrsetka.Text);
       Q.ParamByName('id').AsInteger    := FCurrentActivityID;
       Q.ExecSQL;
 

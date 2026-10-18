@@ -623,7 +623,7 @@ object FrameOsoblje: TFrameOsoblje
       Padding.Right = 16.000000000000000000
       Padding.Bottom = 16.000000000000000000
       Size.Width = 320.000000000000000000
-      Size.Height = 310.000000000000000000
+      Size.Height = 470.000000000000000000
       Size.PlatformDefault = False
       Stroke.Kind = None
       XRadius = 16.000000000000000000
@@ -691,12 +691,65 @@ object FrameOsoblje: TFrameOsoblje
         Size.PlatformDefault = False
         TextPrompt = 'hh:nn'
       end
+      object lblKomentarZavrsetka: TLabel
+        Align = Top
+        StyledSettings = [Family, Style, FontColor]
+        Margins.Top = 10.000000000000000000
+        Position.X = 16.000000000000000000
+        Position.Y = 200.000000000000000000
+        Size.Width = 288.000000000000000000
+        Size.Height = 18.000000000000000000
+        Size.PlatformDefault = False
+        TextSettings.Font.Size = 11.000000000000000000
+        Text = 'Komentar:'
+        TabOrder = 5
+      end
+      object memoKomentarZavrsetka: TMemo
+        Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]
+        DataDetectorTypes = []
+        TextSettings.WordWrap = True
+        Align = Top
+        Margins.Top = 4.000000000000000000
+        Position.X = 16.000000000000000000
+        Position.Y = 222.000000000000000000
+        Size.Width = 288.000000000000000000
+        Size.Height = 60.000000000000000000
+        Size.PlatformDefault = False
+        TabOrder = 6
+        Viewport.Width = 288.000000000000000000
+        Viewport.Height = 60.000000000000000000
+      end
+      object lblProcenaZavrsetka: TLabel
+        Align = Top
+        StyledSettings = [Family, Style, FontColor]
+        Margins.Top = 8.000000000000000000
+        Position.X = 16.000000000000000000
+        Position.Y = 290.000000000000000000
+        Size.Width = 288.000000000000000000
+        Size.Height = 18.000000000000000000
+        Size.PlatformDefault = False
+        TextSettings.Font.Size = 11.000000000000000000
+        Text = 'Procena ponasanja:'
+        TabOrder = 7
+      end
+      object edtProcenaZavrsetka: TEdit
+        Touch.InteractiveGestures = [LongTap, DoubleTap]
+        Align = Top
+        TabOrder = 8
+        Position.X = 16.000000000000000000
+        Position.Y = 312.000000000000000000
+        Margins.Top = 4.000000000000000000
+        Size.Width = 288.000000000000000000
+        Size.Height = 36.000000000000000000
+        Size.PlatformDefault = False
+        TextPrompt = 'npr. Odlican, druzeljubiv'
+      end
       object rectZavrsiBtn: TRectangle
         Align = Top
         Fill.Color = claYellow
         Margins.Top = 10.000000000000000000
         Position.X = 16.000000000000000000
-        Position.Y = 200.000000000000000000
+        Position.Y = 358.000000000000000000
         Size.Width = 288.000000000000000000
         Size.Height = 40.000000000000000000
         Size.PlatformDefault = False
@@ -720,7 +773,7 @@ object FrameOsoblje: TFrameOsoblje
         Align = Top
         Margins.Top = 6.000000000000000000
         Position.X = 16.000000000000000000
-        Position.Y = 246.000000000000000000
+        Position.Y = 404.000000000000000000
         Size.Width = 288.000000000000000000
         Size.Height = 36.000000000000000000
         Size.PlatformDefault = False

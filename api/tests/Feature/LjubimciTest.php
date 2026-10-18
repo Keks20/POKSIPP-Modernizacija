@@ -102,8 +102,10 @@ class LjubimciTest extends TestCase
         $this->aktivnost($reks, $nikola, ['Sifra_usluge' => $setnja->Sifra_usluge, 'VremeOd' => '2026-10-02 10:00:00']);
         $this->aktivnost($reks, $nikola, ['Sifra_usluge' => $setnja->Sifra_usluge, 'VremeOd' => '2026-10-03 10:00:00']);
         $this->aktivnost($reks, $nikola, ['Sifra_usluge' => $kupanje->Sifra_usluge, 'VremeOd' => '2026-10-03 12:00:00']);
-        // Bez usluge - ne naplaćuje se
-        $this->aktivnost($reks, $nikola, ['VremeOd' => '2026-10-03 15:00:00']);
+        // Bez usluge (Druga aktivnost) - vidi se na računu, ali se ne naplaćuje
+        $this->aktivnost($reks, $nikola, ['Vrsta_aktivnosti' => 'Trening poslušnosti', 'VremeOd' => '2026-10-03 15:00:00']);
+        // Hrana bez usluge nije stavka računa
+        $this->aktivnost($reks, $nikola, ['Kategorija' => 'Hrana', 'Vrsta_aktivnosti' => 'Suva hrana (g)', 'VremeOd' => '2026-10-03 08:00:00']);
         // Pre prijema (raniji boravak) - ne ulazi u ovaj račun
         $this->aktivnost($reks, $nikola, ['Sifra_usluge' => $setnja->Sifra_usluge, 'VremeOd' => '2026-09-20 10:00:00']);
 
@@ -117,6 +119,12 @@ class LjubimciTest extends TestCase
             ->assertJsonPath('stavke.1.usluga', 'Šetnja')
             ->assertJsonPath('stavke.1.broj', 2)
             ->assertJsonPath('stavke.1.iznos', '1000.00')
+            ->assertJsonPath('stavke.1.naplacuje_se', true)
+            ->assertJsonPath('stavke.2.usluga', 'Trening poslušnosti')
+            ->assertJsonPath('stavke.2.broj', 1)
+            ->assertJsonPath('stavke.2.iznos', '0.00')
+            ->assertJsonPath('stavke.2.naplacuje_se', false)
+            ->assertJsonCount(3, 'stavke')
             ->assertJsonPath('valuta', 'RSD');
     }
 

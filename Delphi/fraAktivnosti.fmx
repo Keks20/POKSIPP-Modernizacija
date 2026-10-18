@@ -82,7 +82,7 @@ object FrameAktivnosti: TFrameAktivnosti
       Position.X = 10.000000000000000000
       Position.Y = 10.000000000000000000
       Size.Width = 372.000000000000000000
-      Size.Height = 541.000000000000000000
+      Size.Height = 450.000000000000000000
       Size.PlatformDefault = False
       Stroke.Color = x00EEEEEE
       Stroke.Thickness = 0.500000000000000000
@@ -97,23 +97,20 @@ object FrameAktivnosti: TFrameAktivnosti
         Size.Height = 18.000000000000000000
         Size.PlatformDefault = False
         TextSettings.Font.Size = 11.000000000000000000
-        Text = 'Vrsta aktivnosti:'
+        Text = 'Aktivnost (iz cenovnika):'
         TabOrder = 0
       end
-      object edtVrsta: TEdit
-        Touch.InteractiveGestures = [LongTap, DoubleTap]
+      object cbUsluga: TComboBox
         Align = Top
-        TabOrder = 1
-        TextSettings.Font.Size = 13.000000000000000000
         Position.X = 12.000000000000000000
         Position.Y = 30.000000000000000000
         Size.Width = 348.000000000000000000
         Size.Height = 36.000000000000000000
         Size.PlatformDefault = False
-        TextPrompt = 'npr. Jutarnja setnja'
-        StyledSettings = [Family, Style, FontColor]
+        TabOrder = 1
+        OnChange = cbUslugaChange
       end
-      object lblVremeOd: TLabel
+      object lblOpis: TLabel
         Align = Top
         StyledSettings = [Family, Style, FontColor]
         Margins.Top = 8.000000000000000000
@@ -123,16 +120,43 @@ object FrameAktivnosti: TFrameAktivnosti
         Size.Height = 18.000000000000000000
         Size.PlatformDefault = False
         TextSettings.Font.Size = 11.000000000000000000
-        Text = 'Vreme od:'
+        Text = 'Opis (nije obavezno):'
         TabOrder = 2
+      end
+      object edtOpis: TEdit
+        Touch.InteractiveGestures = [LongTap, DoubleTap]
+        Align = Top
+        TabOrder = 3
+        MaxLength = 60
+        TextSettings.Font.Size = 13.000000000000000000
+        Position.X = 12.000000000000000000
+        Position.Y = 92.000000000000000000
+        Size.Width = 348.000000000000000000
+        Size.Height = 36.000000000000000000
+        Size.PlatformDefault = False
+        TextPrompt = 'npr. jutarnja, oko parka'
+        StyledSettings = [Family, Style, FontColor]
+      end
+      object lblVremeOd: TLabel
+        Align = Top
+        StyledSettings = [Family, Style, FontColor]
+        Margins.Top = 8.000000000000000000
+        Position.X = 12.000000000000000000
+        Position.Y = 136.000000000000000000
+        Size.Width = 348.000000000000000000
+        Size.Height = 18.000000000000000000
+        Size.PlatformDefault = False
+        TextSettings.Font.Size = 11.000000000000000000
+        Text = 'Vreme od:'
+        TabOrder = 4
       end
       object edtVremeOd: TEdit
         Touch.InteractiveGestures = [LongTap, DoubleTap]
         Align = Top
-        TabOrder = 3
+        TabOrder = 5
         TextSettings.Font.Size = 14.000000000000000000
         Position.X = 12.000000000000000000
-        Position.Y = 92.000000000000000000
+        Position.Y = 154.000000000000000000
         Size.Width = 348.000000000000000000
         Size.Height = 36.000000000000000000
         Size.PlatformDefault = False
@@ -145,21 +169,21 @@ object FrameAktivnosti: TFrameAktivnosti
         StyledSettings = [Family, Style, FontColor]
         Margins.Top = 8.000000000000000000
         Position.X = 12.000000000000000000
-        Position.Y = 136.000000000000000000
+        Position.Y = 198.000000000000000000
         Size.Width = 348.000000000000000000
         Size.Height = 18.000000000000000000
         Size.PlatformDefault = False
         TextSettings.Font.Size = 11.000000000000000000
         Text = 'Vreme do:'
-        TabOrder = 4
+        TabOrder = 6
       end
       object edtVremeDo: TEdit
         Touch.InteractiveGestures = [LongTap, DoubleTap]
         Align = Top
-        TabOrder = 5
+        TabOrder = 7
         TextSettings.Font.Size = 14.000000000000000000
         Position.X = 12.000000000000000000
-        Position.Y = 154.000000000000000000
+        Position.Y = 216.000000000000000000
         Size.Width = 348.000000000000000000
         Size.Height = 36.000000000000000000
         Size.PlatformDefault = False
@@ -172,20 +196,20 @@ object FrameAktivnosti: TFrameAktivnosti
         StyledSettings = [Family, Style, FontColor]
         Margins.Top = 8.000000000000000000
         Position.X = 12.000000000000000000
-        Position.Y = 198.000000000000000000
+        Position.Y = 260.000000000000000000
         Size.Width = 348.000000000000000000
         Size.Height = 18.000000000000000000
         Size.PlatformDefault = False
         TextSettings.Font.Size = 11.000000000000000000
         Text = 'Trajanje:'
-        TabOrder = 6
+        TabOrder = 8
       end
       object lblTrajanjeVal: TLabel
         Align = Top
         StyledSettings = [Family]
         Margins.Top = 5.000000000000000000
         Position.X = 12.000000000000000000
-        Position.Y = 221.000000000000000000
+        Position.Y = 283.000000000000000000
         Size.Width = 348.000000000000000000
         Size.Height = 24.000000000000000000
         Size.PlatformDefault = False
@@ -193,67 +217,29 @@ object FrameAktivnosti: TFrameAktivnosti
         TextSettings.Font.StyleExt = {00070000000000000004000000}
         TextSettings.FontColor = claGreen
         Text = '0 min'
-        TabOrder = 7
-      end
-      object lblKomentar: TLabel
-        Align = Top
-        StyledSettings = [Family, Style, FontColor]
-        Margins.Top = 8.000000000000000000
-        Position.X = 12.000000000000000000
-        Position.Y = 253.000000000000000000
-        Size.Width = 348.000000000000000000
-        Size.Height = 18.000000000000000000
-        Size.PlatformDefault = False
-        TextSettings.Font.Size = 11.000000000000000000
-        Text = 'Komentar:'
-        TabOrder = 8
-      end
-      object memoKomentar: TMemo
-        Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]
-        DataDetectorTypes = []
-        StyledSettings = []
-        Align = Top
-        Position.X = 12.000000000000000000
-        Position.Y = 271.000000000000000000
-        Size.Width = 348.000000000000000000
-        Size.Height = 65.000000000000000000
-        Size.PlatformDefault = False
         TabOrder = 9
-        Viewport.Width = 348.000000000000000000
-        Viewport.Height = 65.000000000000000000
       end
-      object lblProcena: TLabel
+      object lblNapomena: TLabel
         Align = Top
-        StyledSettings = [Family, Style, FontColor]
-        Margins.Top = 8.000000000000000000
+        StyledSettings = [Family, Style]
+        Margins.Top = 12.000000000000000000
         Position.X = 12.000000000000000000
-        Position.Y = 344.000000000000000000
+        Position.Y = 320.000000000000000000
         Size.Width = 348.000000000000000000
-        Size.Height = 18.000000000000000000
+        Size.Height = 34.000000000000000000
         Size.PlatformDefault = False
         TextSettings.Font.Size = 11.000000000000000000
-        Text = 'Procena:'
+        TextSettings.FontColor = claGray
+        TextSettings.WordWrap = True
+        Text = 'Komentar i procena se upisuju kad se aktivnost zavrsi.'
         TabOrder = 10
-      end
-      object edtProcena: TEdit
-        Touch.InteractiveGestures = [LongTap, DoubleTap]
-        Align = Top
-        TabOrder = 11
-        Position.X = 12.000000000000000000
-        Position.Y = 370.000000000000000000
-        Margins.Top = 8.000000000000000000
-        Size.Width = 348.000000000000000000
-        Size.Height = 36.000000000000000000
-        Size.PlatformDefault = False
-        TextPrompt = 'npr. Odlican, druzeljubiv'
-        StyledSettings = []
       end
       object rectZapocni: TRectangle
         Align = Bottom
         Fill.Color = claYellow
         Margins.Bottom = 8.000000000000000000
         Position.X = 12.000000000000000000
-        Position.Y = 475.000000000000000000
+        Position.Y = 384.000000000000000000
         Size.Width = 348.000000000000000000
         Size.Height = 46.000000000000000000
         Size.PlatformDefault = False

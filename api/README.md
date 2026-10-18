@@ -91,7 +91,7 @@ Greške: `{"poruka": "..."}`. Za greške u unosu (422) Laravel vraća `{"message
 | Vlasnik vidi samo svoje ljubimce | `fraDnevnikMusterije.pas` | `Ljubimac::vidljiviZa` |
 | Prijem: vlasnik mora postojati, boks slobodan, `A3` → `Boks A3`, prazne alergije → `Nema poznatih` | `fraAdmin.pas` | `LjubimacController@store` |
 | Odjava: ne dok je aktivnost „U toku”; boks se oslobađa; ljubimac ostaje u bazi | `fraAdmin.pas` | `LjubimacController@odjava` |
-| Račun: usluge od datuma prijema, po trenutnoj ceni | `uUserStore.ObracunBoravka` | `Services\ObracunBoravka` |
+| Račun: usluge od datuma prijema, po trenutnoj ceni; aktivnosti van cenovnika se navode sa 0 RSD („ne naplaćuje se”) | `uUserStore.ObracunBoravka` | `Services\ObracunBoravka` |
 
 Prijem i izmena proveravaju boks i upisuju u istoj transakciji, sa zaključavanjem reda. Dva admina ne mogu istovremeno da smeste dva ljubimca u isti boks. Delphi tu proveru radi bez transakcije.
 

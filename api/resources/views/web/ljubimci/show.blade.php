@@ -53,7 +53,7 @@
         <div class="card kartica p-3 mb-4">
             <h2 class="h5">Račun za boravak</h2>
             @if (empty($racun['stavke']))
-                <p class="text-muted mb-0">Još nema naplativih usluga.</p>
+                <p class="text-muted mb-0">Još nema zabeleženih usluga.</p>
             @else
                 <div class="table-responsive"><table class="table table-sm align-middle mb-0">
                     <thead><tr><th>Usluga</th><th class="text-end">Puta</th><th class="text-end">Cena</th><th class="text-end">Iznos</th></tr></thead>
@@ -62,8 +62,13 @@
                         <tr>
                             <td>{{ $stavka['usluga'] }}</td>
                             <td class="text-end">{{ $stavka['broj'] }}</td>
-                            <td class="text-end text-nowrap">{{ $rsd($stavka['cena']) }}</td>
-                            <td class="text-end text-nowrap">{{ $rsd($stavka['iznos']) }}</td>
+                            @if ($stavka['naplacuje_se'])
+                                <td class="text-end text-nowrap">{{ $rsd($stavka['cena']) }}</td>
+                                <td class="text-end text-nowrap">{{ $rsd($stavka['iznos']) }}</td>
+                            @else
+                                <td class="text-end text-nowrap">{{ $rsd($stavka['cena']) }}</td>
+                                <td class="text-end text-nowrap text-muted">ne naplaćuje se</td>
+                            @endif
                         </tr>
                     @endforeach
                     </tbody>

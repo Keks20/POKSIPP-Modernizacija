@@ -41,6 +41,7 @@ function SkiniSaZaliha(IdResursa: Integer; Kolicina: Double;
   out Greska: string): Boolean;
 
 // Obracun boravka po cenovniku: sve usluge zabelezene za ljubimca od dana prijema.
+// Aktivnosti van cenovnika ("Druga aktivnost") navode se uz oznaku da se ne naplacuju.
 // Vraca tekst racuna (stavka po stavka), a ukupan iznos u Ukupno.
 function ObracunBoravka(IdLjubimca: Integer; out Ukupno: Double): string;
 
@@ -211,12 +212,34 @@ begin
         FormatFloat('#,##0.##', dStavka) + ' RSD' + #13#10;
       Q.Next;
     end;
+    Q.Close;
+
+    // Aktivnosti bez usluge (npr. trening poslusnosti): vide se na racunu,
+    // ali ne ulaze u ukupan iznos. Isto pravilo ima i API (Services\ObracunBoravka).
+    Q.SQL.Text :=
+      'SELECT da.Vrsta_aktivnosti, COUNT(*) AS Broj ' +
+      'FROM DNEVNA_AKTIVNOST da ' +
+      'JOIN pets p ON p.id = da.Sifra_ljubimca ' +
+      'WHERE da.Sifra_ljubimca = :p ' +
+      '  AND da.Kategorija = ''Aktivnosti'' ' +
+      '  AND da.Sifra_usluge IS NULL ' +
+      '  AND (p.DatumPrijema IS NULL OR da.VremeOd >= p.DatumPrijema) ' +
+      'GROUP BY da.Vrsta_aktivnosti ' +
+      'ORDER BY da.Vrsta_aktivnosti';
+    Q.ParamByName('p').AsInteger := IdLjubimca;
+    Q.Open;
+    while not Q.Eof do
+    begin
+      Result := Result + Q.FieldByName('Vrsta_aktivnosti').AsString + ': ' +
+        Q.FieldByName('Broj').AsString + ' x 0 = ne naplacuje se' + #13#10;
+      Q.Next;
+    end;
   finally
     Q.Free;
   end;
 
   if Result = '' then
-    Result := 'Nema naplativih usluga.' + #13#10;
+    Result := 'Nema zabelezenih usluga.' + #13#10;
   Result := Result + #13#10 + 'UKUPNO: ' + FormatFloat('#,##0.##', Ukupno) + ' RSD';
 end;
 

@@ -7,7 +7,7 @@ uses
   System.Variants, System.DateUtils,
   FMX.Types, FMX.Graphics, FMX.Controls, FMX.Forms, FMX.Dialogs,
   FMX.StdCtrls, FMX.Controls.Presentation, FMX.Layouts, FMX.Objects,
-  FMX.Edit, FMX.Memo, FMX.Memo.Types, FMX.ScrollBox,
+  FMX.Edit, FMX.ListBox,
   FireDAC.Comp.Client, uUserStore, uNavFrames;
 
 type
@@ -20,7 +20,10 @@ type
     rectForma: TRectangle;
 
     lblVrsta: TLabel;
-    edtVrsta: TEdit;
+    cbUsluga: TComboBox;      // usluga iz cenovnika (USLUGA) - od nje zavisi racun
+
+    lblOpis: TLabel;
+    edtOpis: TEdit;           // npr. "jutarnja, oko parka" (obavezno samo za "Druga aktivnost")
 
     lblVremeOd: TLabel;
     edtVremeOd: TEdit;
@@ -31,11 +34,7 @@ type
     lblTrajanje: TLabel;
     lblTrajanjeVal: TLabel;
 
-    lblKomentar: TLabel;
-    memoKomentar: TMemo;
-
-    lblProcena: TLabel;
-    edtProcena: TEdit;
+    lblNapomena: TLabel;
 
     rectZapocni: TRectangle;
     lblZapocni: TLabel;
@@ -45,9 +44,12 @@ type
     procedure rectNazadClick(Sender: TObject);
     procedure edtVremeDoExit(Sender: TObject);
     procedure edtVremeOdExit(Sender: TObject);
+    procedure cbUslugaChange(Sender: TObject);
 
   private
     FFS: TFormatSettings;
+    FUslugaIDs: TArray<Integer>;  // Sifra_usluge za svaku stavku menija; 0 = druga aktivnost
+    procedure UcitajUsluge;
     procedure ZapocniAktivnost;
     procedure IzracunajTrajanje;
     function ParsujVreme(const AVreme: string; out ADT: TDateTime): Boolean;
@@ -57,26 +59,10 @@ implementation
 
 {$R *.fmx}
 
-// Nadji uslugu iz kataloga ciji se naziv pojavljuje u vrsti aktivnosti (OBUHVATA)
-function NadjiUslugu(const AVrsta: string): Integer;
-var
-  Q: TFDQuery;
-begin
-  Result := 0;
-  Q := TFDQuery.Create(nil);
-  try
-    Q.Connection := DB;
-    Q.SQL.Text :=
-      'SELECT Sifra_usluge FROM USLUGA ' +
-      'WHERE instr(lower(:v), lower(Naziv)) > 0 LIMIT 1';
-    Q.ParamByName('v').AsString := AVrsta;
-    Q.Open;
-    if not Q.IsEmpty then Result := Q.Fields[0].AsInteger;
-    Q.Close;
-  finally
-    Q.Free;
-  end;
-end;
+const
+  // Aktivnost koje nema u cenovniku (npr. trening poslusnosti): upisuje se bez usluge,
+  // pa se ne naplacuje. Opis je tada obavezan, jer je on jedini naziv aktivnosti.
+  DRUGA_AKTIVNOST = 'Druga aktivnost (bez naplate)';
 
 procedure TFrameAktivnosti.Loaded;
 begin
@@ -90,6 +76,67 @@ begin
   edtVremeOd.Text     := FormatDateTime('hh:nn', Now);
   edtVremeDo.Text     := FormatDateTime('hh:nn', Now);
   lblTrajanjeVal.Text := '0 min';
+  UcitajUsluge;
+end;
+
+// Napuni padajuci meni uslugama iz cenovnika (USLUGA).
+// Ranije se vrsta kucala rukom, a usluga se pogadjala iz teksta: "setnja" bez
+// kvacice ili "jutarnja setnja" mogli su da promase uslugu, pa se nije naplacivala.
+// Hranjenje se ne nudi - ono se upisuje preko ekrana Hrana.
+procedure TFrameAktivnosti.UcitajUsluge;
+var
+  Q: TFDQuery;
+  n: Integer;
+begin
+  cbUsluga.Items.BeginUpdate;
+  try
+    cbUsluga.Items.Clear;
+    FUslugaIDs := nil;
+    n := 0;
+    Q := TFDQuery.Create(nil);
+    try
+      Q.Connection := DB;
+      Q.SQL.Text :=
+        'SELECT Sifra_usluge, Naziv FROM USLUGA ' +
+        'WHERE Naziv <> ''Hranjenje'' ' +
+        'ORDER BY Naziv';
+      Q.Open;
+      while not Q.Eof do
+      begin
+        SetLength(FUslugaIDs, n + 1);
+        FUslugaIDs[n] := Q.FieldByName('Sifra_usluge').AsInteger;
+        cbUsluga.Items.Add(Q.FieldByName('Naziv').AsString);
+        Inc(n);
+        Q.Next;
+      end;
+    finally
+      Q.Free;
+    end;
+
+    // Poslednja stavka: aktivnost van cenovnika
+    SetLength(FUslugaIDs, n + 1);
+    FUslugaIDs[n] := 0;
+    cbUsluga.Items.Add(DRUGA_AKTIVNOST);
+  finally
+    cbUsluga.Items.EndUpdate;
+  end;
+  cbUsluga.ItemIndex := 0;
+  cbUslugaChange(nil);
+end;
+
+procedure TFrameAktivnosti.cbUslugaChange(Sender: TObject);
+begin
+  if (cbUsluga.ItemIndex >= 0) and (cbUsluga.ItemIndex < Length(FUslugaIDs)) and
+     (FUslugaIDs[cbUsluga.ItemIndex] = 0) then
+  begin
+    lblOpis.Text := 'Naziv aktivnosti (obavezno):';
+    edtOpis.TextPrompt := 'npr. Trening poslusnosti';
+  end
+  else
+  begin
+    lblOpis.Text := 'Opis (nije obavezno):';
+    edtOpis.TextPrompt := 'npr. jutarnja, oko parka';
+  end;
 end;
 
 function TFrameAktivnosti.ParsujVreme(const AVreme: string;
@@ -149,18 +196,42 @@ begin
   IzracunajTrajanje;
 end;
 
-// Zapocni aktivnost — cuvaj sa statusom 'U toku', odmah se vrati
+// Zapocni aktivnost - cuva se sa statusom 'U toku', odmah se vrati.
+// Komentar i procena se upisuju tek kad se aktivnost zavrsi (popup na ekranu Osoblje),
+// jer se tek tada zna kako je proslo.
 procedure TFrameAktivnosti.ZapocniAktivnost;
 var
   Q: TFDQuery;
   dtOd, dtDo: TDateTime;
+  idUsluga: Integer;
+  sOpis, sVrsta: string;
 begin
-  if Trim(edtVrsta.Text) = '' then
+  if (cbUsluga.ItemIndex < 0) or (cbUsluga.ItemIndex >= Length(FUslugaIDs)) then
   begin
-    ShowMessage('Unesite vrstu aktivnosti!');
-    edtVrsta.SetFocus;
+    ShowMessage('Izaberite aktivnost iz padajuceg menija!');
     Exit;
   end;
+
+  idUsluga := FUslugaIDs[cbUsluga.ItemIndex];
+  sOpis    := Trim(edtOpis.Text);
+
+  if idUsluga = 0 then
+  begin
+    if sOpis = '' then
+    begin
+      ShowMessage('Unesite naziv aktivnosti (npr. Trening poslusnosti)!');
+      edtOpis.SetFocus;
+      Exit;
+    end;
+    sVrsta := sOpis;
+  end
+  else if sOpis = '' then
+    sVrsta := cbUsluga.Items[cbUsluga.ItemIndex]
+  else
+    sVrsta := cbUsluga.Items[cbUsluga.ItemIndex] + ' - ' + sOpis;
+
+  // Kolona Vrsta_aktivnosti je VARCHAR(100)
+  sVrsta := Copy(sVrsta, 1, 100);
 
   if not ParsujVreme(edtVremeOd.Text, dtOd) then
   begin
@@ -209,27 +280,25 @@ begin
       Q.SQL.Text :=
         'INSERT INTO DNEVNA_AKTIVNOST ' +
         '(Kategorija, Vrsta_aktivnosti, VremeOd, VremeDo, ' +
-        ' DuzinaTrajanja, StatusAktivnosti, ' +
-        ' ProcenaPonasanja, Komentar, Sifra_usluge, ' +
+        ' DuzinaTrajanja, StatusAktivnosti, Sifra_usluge, ' +
         ' Sifra_zaposlenog, Sifra_ljubimca) ' +
         'VALUES ' +
         '(:kat, :vrsta, :od, :vdo, ' +
-        ' :traj, :status, :procena, :kom, NULLIF(:usl, 0), :zap, :pet)';  // bez usluge = NULL, ne 0 (strani kljuc u MySQL-u)
+        ' :traj, :status, NULLIF(:usl, 0), :zap, :pet)';  // bez usluge = NULL, ne 0 (strani kljuc u MySQL-u)
 
       Q.ParamByName('kat').AsString     := 'Aktivnosti';
-      Q.ParamByName('vrsta').AsString   := Trim(edtVrsta.Text);
+      Q.ParamByName('vrsta').AsString   := sVrsta;
       Q.ParamByName('od').AsDateTime    := dtOd;
       Q.ParamByName('vdo').AsDateTime   := dtDo;
       Q.ParamByName('traj').AsString    := 'U toku';
       Q.ParamByName('status').AsString  := 'U toku';
-      Q.ParamByName('procena').AsString := Trim(edtProcena.Text);
-      Q.ParamByName('kom').AsString     := Trim(memoKomentar.Text);
-      Q.ParamByName('usl').AsInteger    := NadjiUslugu(Trim(edtVrsta.Text));
+      Q.ParamByName('usl').AsInteger    := idUsluga;
       Q.ParamByName('zap').AsInteger    := LoggedInUserID;
       Q.ParamByName('pet').AsInteger    := SelectedPetID;
       Q.ExecSQL;
 
-      ShowMessage('Aktivnost je zapoceta! Pracena je na pocetnoj strani.');
+      ShowMessage('Aktivnost je zapoceta! Pracena je na pocetnoj strani.' + #13#10 +
+                  'Komentar i procenu upisujete kad je zavrsite.');
       TNavFrames.Back;
     except
       on E: Exception do

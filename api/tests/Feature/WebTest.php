@@ -74,6 +74,7 @@ class WebTest extends TestCase
         $nikola = $this->zaposleni();
         $setnja = $this->usluga('Šetnja', '1500.00');
         $this->aktivnost($reks, $nikola, ['Sifra_usluge' => $setnja->Sifra_usluge, 'Komentar' => 'Bio je veoma dobar']);
+        $this->aktivnost($reks, $nikola, ['Vrsta_aktivnosti' => 'Trening poslušnosti']);
         $this->aktivnost($reks, $nikola, [
             'Kategorija' => 'Hrana', 'Vrsta_aktivnosti' => 'Suva hrana', 'VremeDo' => null,
             'StatusAktivnosti' => null, 'Kolicina' => '280g', 'VremeObroka' => 'Doručak',
@@ -84,6 +85,8 @@ class WebTest extends TestCase
             ->assertOk()
             ->assertSee('Račun za boravak')
             ->assertSee('1.500,00 RSD')
+            ->assertSee('Trening poslušnosti')
+            ->assertSee('ne naplaćuje se')
             ->assertSee('Bio je veoma dobar')
             ->assertSee('Nikola Test')
             ->assertSee('280g');
