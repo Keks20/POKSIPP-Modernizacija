@@ -2,9 +2,10 @@
 # i popuni APP_KEY.
 # .env ne ide na GitHub (vidi .gitignore).
 
-# Kljuc za sesije i sifrovanje. U folderu api pokreni:
-#   php artisan key:generate --show
+# Kljuc za sesije i sifrovanje. U PowerShell-u pokreni (sve u jednom redu):
+#   $b = New-Object byte[] 32; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); "base64:" + [Convert]::ToBase64String($b)
 # i ovde nalepi ceo rezultat (pocinje sa base64:).
+# Ako imas PHP, isto radi i "php artisan key:generate --show" u folderu api.
 APP_KEY=
 
 # Lozinke za bazu u Docker-u (samo za tvoj racunar). Menjaju se PRE prvog pokretanja;

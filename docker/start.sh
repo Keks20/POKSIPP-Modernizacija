@@ -5,8 +5,8 @@ cd /var/www/poksipp/api
 
 if [ -z "$APP_KEY" ]; then
     echo "GRESKA: APP_KEY nije podesen."
-    echo "U folderu api pokreni:  php artisan key:generate --show"
-    echo "i upisi rezultat u .env pored docker-compose.yml (APP_KEY=base64:...)."
+    echo "Napravi kljuc kao u docker/README.md (korak 2) i upisi ga u .env"
+    echo "pored docker-compose.yml (APP_KEY=base64:...)."
     exit 1
 fi
 

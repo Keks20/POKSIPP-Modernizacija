@@ -20,13 +20,14 @@ Treba ti Docker Desktop (uključen, ikonica kita dole desno).
 
 1. Kopiraj `docker\env-primer.txt` u koren repozitorijuma (gde je `docker-compose.yml`) pod imenom `.env`.
    U PowerShell-u, iz korena: `Copy-Item docker\env-primer.txt .env`
-2. Napravi ključ aplikacije. U folderu `api`:
+2. Napravi ključ aplikacije. U PowerShell-u (ne treba ni PHP ni Docker), sve u jednom redu:
 
    ```
-   php artisan key:generate --show
+   $b = New-Object byte[] 32; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); "base64:" + [Convert]::ToBase64String($b)
    ```
 
    Ceo rezultat (`base64:...`) upiši u `.env` kao `APP_KEY=base64:...`.
+   Ako imaš PHP, isto radi i `php artisan key:generate --show` u folderu `api`.
 3. Po želji: ubaci svoju bazu umesto demo podataka (vidi `docker/podaci/README.md`).
 4. Iz korena repozitorijuma:
 
