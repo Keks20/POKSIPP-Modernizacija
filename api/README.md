@@ -24,6 +24,8 @@ REST API nad istom MySQL bazom `poksipp` koju pravi migracija iz Faze 2. Tabele 
 
 4. U Postman-u uvezi `postman\POKSIPP.postman_collection.json` (Import). Pokreni jednu od prijava, pa ostale pozive. Token se sam sačuva.
 
+   Kolekcija gađa XAMPP (`baseUrl` = `http://127.0.0.1:8000`). Za Docker promeni `baseUrl` na `http://localhost:8080`: klik na kolekciju → Variables.
+
 Podešavanja baze su u `.env` (`DB_DATABASE=poksipp`, `DB_USERNAME=root`, prazna lozinka, kao u XAMPP-u).
 
 ## Web stranica za vlasnike

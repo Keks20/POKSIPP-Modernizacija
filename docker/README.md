@@ -10,6 +10,9 @@ To je ista postavka koja kasnije ide na server.
 | Baza (HeidiSQL, DBeaver…) | `127.0.0.1`, port `3307`, korisnik `poksipp`, lozinka iz `.env` |
 
 Portovi su namerno drugačiji od XAMPP-a (80/8000 i 3306), pa XAMPP i Docker mogu da rade istovremeno.
+Otvoreni su samo za ovaj računar (`127.0.0.1`), ne i za ostale uređaje u mreži.
+
+Postman: u kolekciji `api/postman` promeni `baseUrl` na `http://localhost:8080` (klik na kolekciju → Variables).
 
 ## Prvo pokretanje
 

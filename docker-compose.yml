@@ -25,7 +25,8 @@ services:
       # Slike ljubimaca idu u bazu; XAMPP ima 1 MB, ovde ima mesta
       - --max-allowed-packet=16M
     ports:
-      - "3307:3306"
+      # 127.0.0.1: baza je dostupna samo sa ovog racunara, ne i sa ostatka mreze
+      - "127.0.0.1:3307:3306"
     volumes:
       # Podaci baze prezive gasenje i ponovno pravljenje kontejnera
       - db-podaci:/var/lib/mysql
@@ -66,7 +67,7 @@ services:
       CACHE_STORE: file
       QUEUE_CONNECTION: sync
     ports:
-      - "8080:80"
+      - "127.0.0.1:8080:80"
 
 volumes:
   db-podaci:
