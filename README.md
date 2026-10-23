@@ -42,4 +42,4 @@ The original course documents are kept as they were: `Predlog resenjaPPPoksi.pdf
 (development plan), `POKSI.fig` and [`Figma.md`](Figma.md) (UI design) and `UPUTSTVO.docx` (user guide for the original SQLite version).
 
 Tools for moving even older data (dBase/Clipper `.dbf`, Microsoft Access) into MySQL are in a separate repository:
-[StariFormati](https://github.com/Keks20/StariFormati).
+[legacy-formats-to-mysql](https://github.com/Keks20/legacy-formats-to-mysql).

@@ -186,7 +186,7 @@ Most of the hard problems had nothing to do with writing new code. They came fro
 
 ## Beyond POKSI: a toolkit for older formats
 
-POKSI started on SQLite, but the clients I want to help often keep their data in something older. So I built two small Python tools that use the same method as the POKSI migration: look first, import in one transaction, then prove the result with checksums. The code is in its own repository: [StariFormati](https://github.com/Keks20/StariFormati).
+POKSI started on SQLite, but the clients I want to help often keep their data in something older. So I built two small Python tools that use the same method as the POKSI migration: look first, import in one transaction, then prove the result with checksums. The code is in its own repository: [legacy-formats-to-mysql](https://github.com/Keks20/legacy-formats-to-mysql).
 
 **dBase / Clipper (`.dbf`).** I tested on a real Clipper sample with 500 rows, and on an invented Serbian warehouse file from the 1990s with the problems such files really have:
 
